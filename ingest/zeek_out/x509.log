@@ -1,0 +1,11 @@
+#separator \x09
+#set_separator	,
+#empty_field	(empty)
+#unset_field	-
+#path	x509
+#open	2026-09-19-21-05-46
+#fields	ts	fingerprint	certificate.version	certificate.serial	certificate.subject	certificate.issuer	certificate.not_valid_before	certificate.not_valid_after	certificate.key_alg	certificate.sig_alg	certificate.key_type	certificate.key_length	certificate.exponent	certificate.curve	san.dns	san.uri	san.email	san.ip	basic_constraints.ca	basic_constraints.path_len	host_cert	client_cert
+#types	time	string	count	string	string	string	time	time	string	string	string	count	string	string	vector[string]	vector[string]	vector[string]	vector[addr]	bool	count	bool	bool
+1789850960.283963	205f91ac8e8b60f160f736719088bb1dbec965ea2c7b54c3ea6273ed8b2dcd49	3	0B5D6D6D17DAD40E86FB199D667E5245	CN=fls-na.amazon.com	CN=Amazon RSA 2048 M04,O=Amazon,C=US	1785801600.000000	1802908799.000000	rsaEncryption	sha256WithRSAEncryption	rsa	2048	65537	-	fls-na.amazon.com,fls-na.amazon.com.mx,gateway.prod.us-east-1.forester.a2z.com,fls-na.amazon.cl,fls-na.amazon.com.br,fls-na.amazon.ca,fls-na.amazon.com.co,endpoint.prod.us-east-1.forester.a2z.com	-	-	-	F	-	T	F
+1789850961.287117	0bc83f5a1408941fb9c78962b45c85965748c426ce8c28dd1fa1fc8aa14d01b0	3	33000004D7B6F77C8E5C6B44240002000004D7	CN=*.events.data.microsoft.com,OU=WSE,O=Microsoft,L=Redmond,ST=WA,C=US	CN=Microsoft Secure Server CA 2011,O=Microsoft Corporation,L=Redmond,ST=Washington,C=US	1784832042.000000	1816368042.000000	rsaEncryption	sha256WithRSAEncryption	rsa	2048	65537	-	*.events.data.microsoft.com,events.data.microsoft.com,*.vortex-win.data.microsoft.com,vortex-win.data.microsoft.com,*.vortex.data.microsoft.com,vortex.data.microsoft.com,*.events.data.microsoft.us,events.data.microsoft.us,*.vortex-win.data.microsoft.us,vortex-win.data.microsoft.us,*.vortex.data.microsoft.us,vortex.data.microsoft.us,*.events.endpoint.security.microsoft.us,events.endpoint.security.microsoft.us,*.events.endpoint.security.microsoft.com,events.endpoint.security.microsoft.com	-	-	-	F	-	T	F
+#close	2026-09-19-21-05-50

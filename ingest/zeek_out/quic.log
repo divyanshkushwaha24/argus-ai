@@ -1,0 +1,42 @@
+#separator \x09
+#set_separator	,
+#empty_field	(empty)
+#unset_field	-
+#path	quic
+#open	2026-09-19-21-05-45
+#fields	ts	uid	id.orig_h	id.orig_p	id.resp_h	id.resp_p	version	client_initial_dcid	client_scid	server_scid	server_name	client_protocol	history
+#types	time	string	addr	port	addr	port	string	string	string	string	string	string	string
+1789850849.487846	C6zJdp4BPwLI900KL6	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	50974	2404:6800:4000:1006::5d	443	1	147776de89310e8d	(empty)	f47776de89310e8d	youtube.com	h3	IISiiiisIhhhHHhoHHOOOooo
+1789850853.600419	CIxMo04zXtYtaVvfv7	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	57059	2404:6800:4013:807::84	443	1	78e61104451a7fc6	(empty)	f8e61104451a7fc6	lh3.googleusercontent.com	h3	IISiiiisIhhHhHHhoHHOOhoHoOo
+1789850853.893937	CqK6hxAtFNS0blbZk	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	61548	2404:6800:4013:807::5f	443	1	f073299a87570f9e	(empty)	f073299a87570f9e	fonts.googleapis.com	h3	IISiiiishhhIHHHhoHHOOhoHOoOo
+1789850854.251659	CuHjp01Nfi9T64XwH3	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	57676	2404:6800:4000:1006::5d	443	1	44310d7934a98615	(empty)	e4310d7934a98615	youtube.com	h3	IISZZiiishooHOOooO
+1789850849.868853	CVtinFOyajJfVyO7i	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	62265	2001:4860:482a:400::	443	1	a2951f92b272fb38	(empty)	e2951f92b272fb38	www.youtube.com	h3	IISiiiisIhhhHHhoHHOOOhoooOoOoOooOo
+1789850858.301744	CfBmzr4PjK4NK2pT9d	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	53626	2404:6800:4013:804::65	443	1	585e4729dabb888f	(empty)	f85e4729dabb888f	accounts.youtube.com	h3	IISiiiisIhhhHHHhoHHOOOhoHoOoOo
+1789850864.531284	CrpvxbFV3Yf0aa616	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	62323	2404:a800:6:96::10	443	1	d394d5d8a48f794d	(empty)	f394d5d8a48f794d	rr5---sn-ci5gup-a3vz.googlevideo.com	h3	IISiiiiishhIhHhoHHOOOOHHihHoooOooOo
+1789850864.952067	CkrO7z4LA3c9y8jpF8	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	62743	2404:a800:6:145::e	443	1	a012c20363ba28aa	(empty)	e012c20363ba28aa	rr3---sn-ci5gup-a3v6.googlevideo.com	h3	IISiiiiishhIHhhoHHOOOoooOoOoOooOo
+1789850869.398685	CQ3suu3X50zDxprelk	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	50442	2404:6800:4013:800::5e	443	1	ee1425d9596e9194	(empty)	ee1425d9596e9194	fonts.gstatic.com	h3	IISiiiishhhooIHHHOOoOoOoOo
+1789850870.857660	CfQQdA4PUnYxSLzylh	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	56747	2404:6800:4013:811::5e	443	1	66e30287c949012a	(empty)	e6e30287c949012a	www.gstatic.com	h3	IISZZiiishooHOooOOoOoO
+1789850871.451719	CUKaR73cHBFRwSqWBk	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	53886	2404:6800:4003:c11::84	443	1	721e4bc1e4bc71b6	(empty)	f21e4bc1e4bc71b6	yt4.ggpht.com	h3	IISiiiishhIHhHHhoHHOOOhoooHOOo
+1789850871.469155	CWQ0MG1gH7QbTrn1w7	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	62248	2404:6800:4013:800::5e	443	1	74a661dda4c6d401	(empty)	f4a661dda4c6d401	fonts.gstatic.com	h3	IIISZZZZZZiiiiishoIHooOOoOo
+1789850865.557352	ConNZ249gtXqDaV7k	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	65026	2404:a800:6:255::d	443	1	5c4249a9dc1a92a2	(empty)	fc4249a9dc1a92a2	rr2---sn-ci5gup-a3vd.googlevideo.com	h3	IISiiiiishIhhhoIHHHOOOoooOoOoOooOooOoOo
+1789850857.725119	CQEk2O9vMeGUnqVra	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	59060	2404:6800:4013:811::5e	443	1	53516dbfc090f543	(empty)	f3516dbfc090f543	www.gstatic.com	h3	IISiiiisIhhHhooHHOOoOoOoOoOooOo
+1789850876.906076	CH5MFg4gVbAbdjyCgj	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	59472	2404:a800:6:257::10	443	1	fa24274e8211c758	(empty)	fa24274e8211c758	rr5---sn-ci5gup-a3vk.googlevideo.com	h3	IISiiiiishhIhHhoHHOOOOOoooooOoOoooOo
+1789850853.515776	CG8XPc4WmbUpQeR43h	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	53216	2404:6800:4003:c20::84	443	1	9e41e7ddf67e91b2	(empty)	fe41e7ddf67e91b2	yt3.ggpht.com	h3	IISiiiishhIHhHhoHHHOOOOhooOoooOoOoO
+1789850850.386141	CiCNmE4cdug3ayXWMh	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	62460	2404:6800:4003:c03::77	443	1	044c4f08f90b064d	(empty)	e44c4f08f90b064d	i.ytimg.com	h3	IISiiiishIhhHHhoHOOooOOooOoOooOooOoOo
+1789850911.050266	CqawsN3De7nCYQEWYe	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	56762	2404:6800:4013:813::66	443	1	0d8b18feb035fbd0	(empty)	ed8b18feb035fbd0	lh3.google.com	h3	IISiiiishhhIHHhoHHOOooOoO
+1789850911.315094	CAXKR73QHKf5RgpVcg	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	57957	2404:6800:4013:804::5f	443	1	f8d5a9e138861da6	(empty)	f8d5a9e138861da6	ogads-pa.clients6.google.com	h3	IISiiiisIhhhHHhoHHOOooO
+1789850911.317012	CbZM9O3CsasKJFIbed	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	65491	2404:6800:4013:807::84	443	1	0fef60187aba2cad	(empty)	efef60187aba2cad	lh3.googleusercontent.com	h3	IISiiiisIhhhHHhoHOOooOo
+1789850911.500691	C8AWJZL4MYM8PO6l8	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	54997	2404:6800:4013:804::5f	443	1	2a453dd2ab4ba08c	(empty)	ea453dd2ab4ba08c	ogads-pa.clients6.google.com	h3	IIISZiiiiishoHoOOOooO
+1789850911.666374	CeBikQ1IGJLFJbuiM5	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	53639	2404:6800:4013:813::54	443	1	8e16293aa1155a0a	(empty)	ee16293aa1155a0a	accounts.google.com	h3	IIISZZZZZiiiiishoooHOOoOOo
+1789850910.632971	CIrWkCkz8VNbbU9fh	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	59803	2001:4860:482b:7700::	443	1	e4e04b7da67148d9	(empty)	e4e04b7da67148d9	www.google.com	h3	IISiiiishhIHhHHhoHHOOOohoOooOoOoOooO
+1789850914.725836	CZ8bpW3Ric3LAdr7Bf	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	62457	2a03:2880:f311:c0:face:b00c:0:43fe	443	1	addfce32b283b700	(empty)	b700cd7e08577243	scontent.cdninstagram.com	h3	IISishhHhoHHOOihhoHHOhooOohOh
+1789850914.354268	CQ2osw3F5XqnZtJRa	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	58417	2a03:2880:f311:c0:face:b00c:0:43fe	443	1	338301a389717b32	(empty)	8b00fc63129d4c08	static.cdninstagram.com	h3	IISZZZishoooHOOoOoOhoOoOoOo
+1789850915.572761	C1TcT82CPPYfSSJQGg	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	52330	2a03:2880:f311:1:face:b00c:0:25de	443	1	42d8c3d7738ef1ff	(empty)	840073c818d162c1	www.facebook.com	h3	IISishhHhoHHOOhooOoO
+1789850914.256051	Cms97sPcEiumpZywd	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	50469	2a03:2880:f311:c0:face:b00c:0:43fe	443	1	b7797979824c0abc	(empty)	8c001d9b1c5b9f94	static.cdninstagram.com	h3	IISishhHhoHHOOOOhoooOooOoOoooOo
+1789850970.924472	CqqwvE498jhUf0OI57	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	54196	2600:9000:257b:6e00:1d:d7f6:39d6:4401	443	1	0560799b10a307f0	(empty)	23130300a0ed07f3e5cb33bd0cebde6f1cf3bae3	m.media-amazon.com	h3	IISiishhhIHhhHHHOOOOoooOoooOoOooOo
+1789850972.907703	CD6WzQ2Zlq16vzhceh	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	62921	2600:9000:257b:6e00:1d:d7f6:39d6:4401	443	1	0ad516d65a3d2ddb	(empty)	230d0e00a0d7a1fdf126fc0929027f1b208e5bb2	m.media-amazon.com	h3	IISiishhhhhIHHHOOooOooOoOoOooOooOo
+1789850957.875854	C0K2me14usmIipuxV5	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	53661	2a04:4e42:19::272	443	1	e71544162c2d1385	(empty)	2a30a792eced367daf0b148f4d093313e5	m.media-amazon.com	h3	IISiishoHOOoooOoOOoOooOooOoOo
+1789850946.102037	CaOPBl1rY8kAoTfPhl	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	57808	2600:9000:202a:f800:12:bd7a:5b00:93a1	443	1	f72971c7b49ff328	(empty)	13200909384adb15b23da1d3804ac32834a517b9	safebrowsing.brave.com	h3	IISiiishhhhIHHHOOooOo
+1789850913.212178	C3vUKm4UpEqkfeBm28	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	61814	2a03:2880:f311:22:face:b00c:0:4420	443	1	63cdbd97b0f044f6	(empty)	85007b8018b4700e	www.instagram.com	h3	IISishhHhoHHOOhoOooOoOoOooOOo
+1789850957.753817	CxOXJ138lUYSMEaQV8	2401:4900:a445:bc02:9c23:da4a:38ea:eae8	64357	2a04:4e42:19::272	443	1	5ddb3931bf63e770	(empty)	2a815595239b128d960efe3eebd9853a96	m.media-amazon.com	h3	IISiishhhhhhoHHHHOOoooOoOOoOoOoOooOooOoOo
+#close	2026-09-19-21-05-50

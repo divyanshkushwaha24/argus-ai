@@ -1,0 +1,41 @@
+version: "3.9"
+
+# Cherenkov — shared infra for the whole team.
+# Zeek and Suricata are deliberately NOT services here yet.
+# Reason: they need either a real/virtual network interface (live capture)
+# or a mounted pcap (offline analysis). On Windows + Docker Desktop,
+# `network_mode: host` for raw packet capture is unreliable, so for now
+# they're run directly via `ingest/replay.sh` against pcap files.
+# Once the team is testing on a Linux ingest box (native `--net=host`
+# works cleanly there), promote them into this file as long-running
+# services watching a real or replay interface.
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: cherenkov-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--save", "60", "1"]
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: cherenkov-postgres
+    environment:
+      POSTGRES_DB: cherenkov
+      POSTGRES_USER: cherenkov
+      # local-dev password only — move to an env file / secret before
+      # this ever runs anywhere but a laptop.
+      POSTGRES_PASSWORD: cherenkov_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  postgres-data:
