@@ -1,0 +1,44 @@
+---------------------------------------------------------------------------------------------------
+Date: 9/20/2026 -- 19:59:33 (uptime: 0d, 00h 00m 06s)
+---------------------------------------------------------------------------------------------------
+Counter                                                      | TM Name                   | Value
+---------------------------------------------------------------------------------------------------
+capture.kernel_packets                                       | Total                     | 60
+capture.afpacket.polls                                       | Total                     | 259
+capture.afpacket.poll_timeout                                | Total                     | 229
+capture.afpacket.poll_data                                   | Total                     | 22
+decoder.pkts                                                 | Total                     | 60
+decoder.bytes                                                | Total                     | 7126
+decoder.ipv4                                                 | Total                     | 60
+decoder.ethernet                                             | Total                     | 60
+decoder.udp                                                  | Total                     | 60
+decoder.avg_pkt_size                                         | Total                     | 118
+decoder.max_pkt_size                                         | Total                     | 130
+flow.total                                                   | Total                     | 60
+flow.udp                                                     | Total                     | 60
+flow.wrk.spare_sync_avg                                      | Total                     | 100
+flow.wrk.spare_sync                                          | Total                     | 8
+app_layer.flow.dns_udp                                       | Total                     | 60
+app_layer.tx.dns_udp                                         | Total                     | 60
+flow.end.state.new                                           | Total                     | 60
+flow.mgr.rows_per_sec                                        | Total                     | 6553
+flow.spare                                                   | Total                     | 9200
+flow.mgr.rows_maxlen                                         | Total                     | 1
+flow.mgr.flows_checked                                       | Total                     | 15
+flow.mgr.flows_notimeout                                     | Total                     | 15
+memcap.pressure                                              | Total                     | 7
+memcap.pressure_max                                          | Total                     | 7
+defrag.memuse                                                | Total                     | 12582768
+flow.recycler.recycled                                       | Total                     | 60
+flow.recycler.queue_avg                                      | Total                     | 7
+flow.recycler.queue_max                                      | Total                     | 35
+tcp.memuse                                                   | Total                     | 4980736
+tcp.reassembly_memuse                                        | Total                     | 917504
+http.byterange.memuse                                        | Total                     | 168384
+http.byterange.memcap                                        | Total                     | 104857600
+ippair.memuse                                                | Total                     | 398144
+ippair.memcap                                                | Total                     | 16777216
+host.memuse                                                  | Total                     | 382144
+host.memcap                                                  | Total                     | 33554432
+detect.thresholds.cache.memuse                               | Total                     | 17472
+flow.memuse                                                  | Total                     | 7154304

@@ -1,0 +1,22 @@
+[80309 - Suricata-Main] 2026-09-20 19:59:20 Notice: suricata: This is Suricata version 8.0.7 RELEASE running in SYSTEM mode
+[80309 - Suricata-Main] 2026-09-20 19:59:20 Info: cpu: CPUs/cores online: 8
+[80309 - Suricata-Main] 2026-09-20 19:59:20 Info: suricata: Setting engine mode to IDS mode by default
+[80309 - Suricata-Main] 2026-09-20 19:59:20 Info: exception-policy: master exception-policy set to: auto
+[80309 - Suricata-Main] 2026-09-20 19:59:21 Info: suricata: Preparing unexpected signal handling
+[80309 - Suricata-Main] 2026-09-20 19:59:21 Info: conf: Running in live mode, activating unix socket
+[80309 - Suricata-Main] 2026-09-20 19:59:21 Info: logopenfile: fast output device (regular) initialized: fast.log
+[80309 - Suricata-Main] 2026-09-20 19:59:21 Info: logopenfile: eve-log output device (regular) initialized: eve.json
+[80309 - Suricata-Main] 2026-09-20 19:59:21 Info: logopenfile: stats output device (regular) initialized: stats.log
+[80309 - Suricata-Main] 2026-09-20 19:59:21 Warning: detect: No rule files match the pattern /var/lib/suricata/rules/suricata.rules
+[80309 - Suricata-Main] 2026-09-20 19:59:21 Warning: detect: 1 rule files specified, but no rules were loaded!
+[80309 - Suricata-Main] 2026-09-20 19:59:21 Info: threshold-config: Threshold config parsed: 0 rule(s) found
+[80309 - Suricata-Main] 2026-09-20 19:59:21 Info: detect: 0 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 0 inspect application layer, 0 are decoder event only
+[80309 - Suricata-Main] 2026-09-20 19:59:21 Info: unix-manager: unix socket '/var/run/suricata/suricata-command.socket'
+[80309 - Suricata-Main] 2026-09-20 19:59:21 Info: runmodes: veth-rx: creating 8 threads
+[80313 - W#01-veth-rx] 2026-09-20 19:59:21 Info: ioctl: veth-rx: MTU 1500
+[80309 - Suricata-Main] 2026-09-20 19:59:22 Notice: threads: Threads created -> W: 8 FM: 1 FR: 1   Engine started.
+[80309 - Suricata-Main] 2026-09-20 19:59:25 Notice: suricata: Signal Received.  Stopping engine.
+[80309 - Suricata-Main] 2026-09-20 19:59:25 Info: suricata: time elapsed 4.199s
+[80309 - Suricata-Main] 2026-09-20 19:59:26 Info: counters: Alerts: 0
+[80312 - US] 2026-09-20 19:59:26 Info: unix-manager: unix socket '/var/run/suricata/suricata-command.socket' closed
+[80309 - Suricata-Main] 2026-09-20 19:59:26 Notice: device: veth-rx: packets: 30, drops: 0 (0.00%), invalid chksum: 0
