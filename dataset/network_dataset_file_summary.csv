@@ -1,0 +1,8 @@
+source_file,label,events,flows,dns_flows,tls_flows,quic_flows
+beacon\suricata\eve.json,beacon,31,30,0,0,0
+benign\suricata\eve.json,benign,41,40,0,0,0
+ddos\suricata\eve.json,ddos,1001,1000,0,0,0
+dns_tunnel\suricata\eve.json,dns_tunnel,121,60,60,0,0
+exfil\suricata\eve.json,exfil,3,2,0,0,0
+ja3_malware\suricata\eve.json,ja3_malware,6,5,0,0,0
+portscan\suricata\eve.json,portscan,202,201,0,0,0

@@ -1,21 +1,14 @@
-cd $REPO
-cat > .gitignore << 'EOF'
 # Real-world datasets -- large, downloaded separately, not committed
 data/raw/
+data/alerts.db
 
 # Python
-_pycache_/
+__pycache__/
 *.pyc
 .venv/
 venv/
+.env
 
 # OS noise
 .DS_Store
 Thumbs.db
-
-# NOTE: data/synthetic/*.pcap and data/sample_logs/ are intentionally
-# NOT ignored -- they're small, deliberate, committed fixtures your
-# teammate needs. Don't add them here.
-EOF
-
-cat .gitignore   # verify it was created
