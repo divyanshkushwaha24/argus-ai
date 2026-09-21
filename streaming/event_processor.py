@@ -205,8 +205,8 @@ def dispatch(store: StateStore, blacklist: set, event: dict) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="Cherenkov event processor")
-    parser.add_argument("--zeek-dir", required=True, help="directory containing Zeek's *.log files")
-    parser.add_argument("--eve-json", required=True, help="path to Suricata's eve.json")
+    parser.add_argument("--zeek-dir", default="data/sample_logs/portscan/zeek", help="directory containing Zeek's *.log files")
+    parser.add_argument("--eve-json", default="data/sample_logs/portscan/suricata/eve.json", help="path to Suricata's eve.json")
     parser.add_argument("--redis-host", default="localhost")
     parser.add_argument("--redis-port", type=int, default=6379)
     parser.add_argument("--ja3-blacklist", default="data/ja3_blacklist/blacklist.csv")
