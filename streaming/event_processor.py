@@ -41,7 +41,17 @@ from pathlib import Path
 
 # Make `features` importable regardless of the working directory this
 # script is launched from.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+_repo_root = Path(__file__).resolve().parent.parent
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
+
+_candidate_sites = [
+    _repo_root / ".venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+    Path(os.path.expanduser(f"~/.local/lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages")),
+]
+for _s in _candidate_sites:
+    if _s.is_dir() and str(_s) not in sys.path:
+        sys.path.insert(0, str(_s))
 
 import redis
 
@@ -271,6 +281,8 @@ def main():
         while True:
             source, log_type, raw = q.get()
             event = normalize_zeek(log_type, raw) if source == "zeek" else normalize_suricata(raw)
+            if not event.get("src_ip"):
+                continue
             dispatch(store, blacklist, event)
 
             # Contract 1: Publish normalized event to Redis stream for detection workers

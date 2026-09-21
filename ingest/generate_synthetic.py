@@ -28,7 +28,13 @@ import struct
 import sys
 import time
 
-from scapy.all import Ether, IP, TCP, UDP, DNS, DNSQR, Raw, wrpcap
+try:
+    from scapy.all import Ether, IP, TCP, UDP, DNS, DNSQR, Raw, wrpcap
+except ModuleNotFoundError:
+    for p in ["/usr/lib/python3/dist-packages", "/usr/local/lib/python3.10/dist-packages"]:
+        if p not in sys.path and os.path.isdir(p):
+            sys.path.append(p)
+    from scapy.all import Ether, IP, TCP, UDP, DNS, DNSQR, Raw, wrpcap
 
 SRC_MAC = "02:00:00:00:00:01"
 DST_MAC = "02:00:00:00:00:02"

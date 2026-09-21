@@ -13,10 +13,20 @@ Usage:
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import sys
 import time
 
 __path__ = [str(Path(__file__).resolve().parent / "pipeline")]
+_repo_root = Path(__file__).resolve().parent
+_candidate_sites = [
+    _repo_root / ".venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+    Path(os.path.expanduser(f"~/.local/lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages")),
+]
+for _s in _candidate_sites:
+    if _s.is_dir() and str(_s) not in sys.path:
+        sys.path.insert(0, str(_s))
+
 from typing import List
 
 import pandas as pd

@@ -5,7 +5,7 @@ pipeline/consumer.py -- Cherenkov pipeline orchestrator + detection worker
 
 One file, two roles, one entry point.
 
-ROLE 1 - ORCHESTRATOR  (`python -m pipeline.consumer up`)
+ROLE 1 - ORCHESTRATOR  (`python3 -m pipeline.consumer up`)
     Brings the whole prototype up in dependency order, waits for a single manual
     trigger ("start simulation"), then lets the data flow through every stage on
     its own until you stop it:
@@ -14,7 +14,7 @@ ROLE 1 - ORCHESTRATOR  (`python -m pipeline.consumer up`)
         read-only enforcement -> detection workers -> event processor -> sensor
         -> READY -> [ trigger ] -> tcpreplay -> ... -> drain -> IDLE
 
-ROLE 2 - DETECTION WORKER  (`python -m pipeline.consumer worker`, spawned by `up`)
+ROLE 2 - DETECTION WORKER  (`python3 -m pipeline.consumer worker`, spawned by `up`)
     Consumes normalized events from a Redis Stream (consumer group, at-least-once),
     runs every detector, fuses risk, correlates incidents, and writes alerts to
     the sink (Postgres via `alerting.writer`, JSONL fallback).
@@ -79,11 +79,32 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Optional, Sequence
 
-import redis
-
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:  # lets `python pipeline/consumer.py` import models.*, alerting.*
+if str(ROOT) not in sys.path:  # lets `python3 pipeline/consumer.py` import models.*, alerting.*
     sys.path.insert(0, str(ROOT))
+
+# When executed via sudo or directly, ensure project's .venv and user's site-packages are found
+_candidate_sites = [
+    ROOT / ".venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+    Path(os.path.expanduser(f"~/.local/lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages")),
+]
+_sudo_user = os.environ.get("SUDO_USER")
+if _sudo_user:
+    try:
+        import pwd
+        _u_home = pwd.getpwnam(_sudo_user).pw_dir
+        _candidate_sites.insert(0, Path(_u_home) / ".local" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages")
+        _candidate_sites.insert(0, ROOT / ".venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages")
+    except Exception:
+        pass
+
+for _s in _candidate_sites:
+    if _s.is_dir() and str(_s) not in sys.path:
+        sys.path.insert(0, str(_s))
+        existing_pp = os.environ.get("PYTHONPATH", "")
+        os.environ["PYTHONPATH"] = f"{_s}:{ROOT}:{existing_pp}" if existing_pp else f"{_s}:{ROOT}"
+
+import redis
 
 log = logging.getLogger("cherenkov")
 
@@ -1026,7 +1047,12 @@ def _priv(cfg: Config) -> list[str]:
 
 def _run(argv: Sequence[str], check: bool = True, timeout: float = 30.0) -> subprocess.CompletedProcess:
     log.debug("$ %s", " ".join(argv))
-    proc = subprocess.run(list(argv), capture_output=True, text=True, timeout=timeout)
+    try:
+        proc = subprocess.run(list(argv), capture_output=True, text=True, timeout=timeout)
+    except FileNotFoundError as exc:
+        if not check:
+            return subprocess.CompletedProcess(list(argv), 127, stdout="", stderr=str(exc))
+        raise
     if check and proc.returncode != 0:
         raise RuntimeError(f"`{' '.join(argv)}` failed (rc={proc.returncode}): {(proc.stderr or proc.stdout).strip()}")
     return proc
@@ -1047,7 +1073,8 @@ def setup_network(cfg: Config) -> None:
     _run(pv + [ip, "link", "set", rx, "promisc", "on"])                     # see every frame, not only ours
     _run(pv + [ip, "link", "set", "dev", rx, "arp", "off"])                 # never emit ARP
     _run(pv + [_bin("sysctl"), "-w", f"net.ipv6.conf.{rx}.disable_ipv6=1"], check=False)   # no RS/MLD chatter
-    _run(pv + [_bin("ethtool"), "-K", rx, "gro", "off", "lro", "off"], check=False)        # sensors want real frames
+    if shutil.which("ethtool") or os.path.exists("/usr/sbin/ethtool") or os.path.exists("/sbin/ethtool"):
+        _run(pv + [_bin("ethtool"), "-K", rx, "gro", "off", "lro", "off"], check=False)    # sensors want real frames
     # Read-only enforcement: anything the monitor NIC tries to *send* is dropped by the kernel.
     _run(pv + [_bin("tc"), "qdisc", "replace", "dev", rx, "clsact"], check=False)
     _run(pv + [_bin("tc"), "filter", "replace", "dev", rx, "egress", "pref", "1", "protocol", "all", "matchall", "action", "drop"], check=False)
@@ -1162,8 +1189,22 @@ class ManagedProcess:
         self.log = logging.getLogger(f"cherenkov.{name}")
 
     def start(self) -> None:
+        preexec = None
+        if sys.platform.startswith("linux"):
+            def _preexec() -> None:
+                try:
+                    import ctypes
+                    libc = ctypes.CDLL("libc.so.6")
+                    libc.prctl(1, signal.SIGTERM)
+                except Exception:
+                    pass
+            preexec = _preexec
+
+        # sudo requires a controlling terminal to match cached PAM tty tickets;
+        # detaching session breaks `sudo -n`
+        new_session = not (self.argv and self.argv[0] == "sudo")
         self.proc = subprocess.Popen(self.argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
-                                     cwd=ROOT, env=self.env, start_new_session=True)
+                                     cwd=ROOT, env=self.env, start_new_session=new_session, preexec_fn=preexec)
         threading.Thread(target=self._pump, args=(self.proc,), name=f"pump-{self.name}", daemon=True).start()
         self.log.info("started pid=%s: %s", self.proc.pid, " ".join(shlex.quote(a) for a in self.argv))
 

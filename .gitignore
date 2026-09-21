@@ -18,3 +18,9 @@ tempCodeRunnerFile.py
 *.tempCodeRunnerFile.py
 .pytest_cache/
 .vscode/
+
+# Local databases and rules
+suricata_rules/
+*.db
+dashboard/data/
+

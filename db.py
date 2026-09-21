@@ -74,14 +74,36 @@ def create_alerts_table():
         recency         REAL,
         risk_score      INTEGER,
         risk_level      TEXT,
+        severity        TEXT,
         explanation     TEXT
+    )
+    """
+    incidents_sql = """
+    CREATE TABLE IF NOT EXISTS incidents (
+        incident_id     TEXT PRIMARY KEY,
+        source_ip       TEXT NOT NULL,
+        first_seen      TEXT,
+        last_seen       TEXT,
+        alert_count     INTEGER DEFAULT 0,
+        combined_risk   INTEGER DEFAULT 0,
+        risk_level      TEXT DEFAULT 'LOW',
+        threat_classes  TEXT DEFAULT '[]',
+        created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """
     if HAS_POSTGRES and isinstance(conn, psycopg2.extensions.connection):
         with conn.cursor() as cur:
             cur.execute(sql)
+            cur.execute("ALTER TABLE alerts ADD COLUMN IF NOT EXISTS severity TEXT")
+            cur.execute(incidents_sql)
     else:
         conn.execute(sql)
+        try:
+            conn.execute("ALTER TABLE alerts ADD COLUMN severity TEXT")
+        except sqlite3.OperationalError:
+            pass  # column already exists
+        conn.execute(incidents_sql)
         conn.commit()
 
 
@@ -89,6 +111,7 @@ def insert_alert(alert: Alert):
     """Insert one alert into the database."""
     conn = get_connection()
     evidence_str = json.dumps(alert.evidence) if isinstance(alert.evidence, dict) else str(alert.evidence)
+    severity_val = str(alert.risk_level or "LOW").upper()
 
     if HAS_POSTGRES and isinstance(conn, psycopg2.extensions.connection):
         with conn.cursor() as cur:
@@ -97,8 +120,8 @@ def insert_alert(alert: Alert):
                 (alert_id, incident_id, timestamp, flow_id, src_ip, src_port,
                  dest_ip, dest_port, threat_class, confidence, evidence,
                  anomaly_score, severity_prior, recency, risk_score, risk_level,
-                 explanation)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                 severity, explanation)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 ON CONFLICT (alert_id) DO NOTHING
             """, (
                 alert.alert_id, alert.incident_id, alert.timestamp,
@@ -106,7 +129,7 @@ def insert_alert(alert: Alert):
                 alert.dest_ip, alert.dest_port, alert.threat_class,
                 alert.confidence, evidence_str,
                 alert.anomaly_score, alert.severity_prior, alert.recency,
-                alert.risk_score, alert.risk_level, alert.explanation,
+                alert.risk_score, alert.risk_level, severity_val, alert.explanation,
             ))
     else:
         conn.execute("""
@@ -114,15 +137,15 @@ def insert_alert(alert: Alert):
             (alert_id, incident_id, timestamp, flow_id, src_ip, src_port,
              dest_ip, dest_port, threat_class, confidence, evidence,
              anomaly_score, severity_prior, recency, risk_score, risk_level,
-             explanation)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+             severity, explanation)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             alert.alert_id, alert.incident_id, alert.timestamp,
             alert.flow_id, alert.src_ip, alert.src_port,
             alert.dest_ip, alert.dest_port, alert.threat_class,
             alert.confidence, evidence_str,
             alert.anomaly_score, alert.severity_prior, alert.recency,
-            alert.risk_score, alert.risk_level, alert.explanation,
+            alert.risk_score, alert.risk_level, severity_val, alert.explanation,
         ))
         conn.commit()
 

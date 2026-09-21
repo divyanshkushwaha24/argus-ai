@@ -414,7 +414,7 @@ def main():
                     insidetextfont=dict(family="JetBrains Mono, monospace", size=11, color="#ffffff"),
                     marker=dict(line=dict(color='#ffffff', width=2)),
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
         with col_right:
             st.markdown('<div class="section-header"><span class="section-tag">02 // SPECTRUM</span> Risk Score Distribution</div>',
@@ -446,7 +446,7 @@ def main():
                     ),
                     bargap=0.15,
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
         # ── Alert Table ──────────────────────────────────────────────
         st.markdown('<div class="section-header"><span class="section-tag">03 // REAL-TIME FEED</span> Live Alerts</div>',
@@ -514,7 +514,7 @@ def main():
                 return [color] * len(row)
 
             styled = display_df.style.apply(highlight_risk, axis=1)
-            st.dataframe(styled, use_container_width=True, height=400)
+            st.dataframe(styled, width="stretch", height=400)
 
             st.caption(f"Showing {len(filtered)} of {len(df)} alerts")
         else:
@@ -545,7 +545,7 @@ def main():
                 lambda x: str(x)[:8] + "..." if x else ""
             )
 
-            st.dataframe(incidents, use_container_width=True, height=250)
+            st.dataframe(incidents, width="stretch", height=250)
 
     else:
         st.info(
