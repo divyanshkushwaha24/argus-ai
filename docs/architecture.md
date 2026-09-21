@@ -1,6 +1,6 @@
 # Architecture — Read-Only Network Boundary
 
-Owner: Network Engineering
+Owner: Argus-AI
 Status: draft — refine wording once the physical tap/mirror hardware is chosen
 
 ## 1. The core constraint
