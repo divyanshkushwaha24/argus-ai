@@ -8,9 +8,11 @@ are easy to find, audit, and change without touching detector logic.
 import os
 from ipaddress import ip_network
 
-from dotenv import load_dotenv
-
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 # ── Network topology ──────────────────────────────────────────────────
 # Which subnets are "internal".  Needed by the exfiltration detector to
