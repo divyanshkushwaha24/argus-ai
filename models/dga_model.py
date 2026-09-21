@@ -95,12 +95,25 @@ class DGAModel:
                     self.explainer = None
 
     # ── Inference ────────────────────────────────────────────────────
-    def predict(self, row: pd.Series) -> Optional[Detection]:
+    def predict(self, row: Union[pd.Series, dict]) -> Optional[Detection]:
         """Run inference on one flow record.  Returns Detection or None."""
         if self.model is None:
             self.load()
         if self.model is None:
             return None
+
+        if isinstance(row, dict):
+            row = dict(row)
+            if "dest_ip" not in row and "dst_ip" in row:
+                row["dest_ip"] = row["dst_ip"]
+            if "dest_port" not in row and "dst_port" in row:
+                row["dest_port"] = row["dst_port"]
+            if "timestamp" not in row and "ts" in row:
+                row["timestamp"] = str(row["ts"])
+            if "dns_query" not in row and "query" in row:
+                row["dns_query"] = row["query"]
+            if "dns_event_count" not in row:
+                row["dns_event_count"] = 1 if (row.get("dns_query") or row.get("event_type") == "dns") else 0
 
         # Only run on rows that have DNS data
         dns_event_count = row.get("dns_event_count", 0)
@@ -182,3 +195,33 @@ class DGAModel:
         if ngram < -5:
             parts.append(f"n-gram score {ngram:.1f} (not English-like)")
         return "; ".join(parts)
+
+
+_dga_instance: Optional[DGAModel] = None
+
+
+def build_detector() -> DGAModel:
+    global _dga_instance
+    if _dga_instance is None:
+        _dga_instance = DGAModel()
+        _dga_instance.load()
+    return _dga_instance
+
+
+def evaluate(event: Union[dict, pd.Series], r: Any = None) -> Optional[List[dict]]:
+    """Contract 2 evaluation function for Cherenkov streaming pipeline."""
+    det = build_detector().predict(event)
+    if not det:
+        return None
+    ev = det.evidence
+    ev_list = [f"{k}: {v}" for k, v in ev.items()] if isinstance(ev, dict) else (ev if isinstance(ev, list) else [str(ev)])
+    return [{
+        "threat_class": det.threat_class,
+        "confidence": float(det.confidence),
+        "evidence": ev_list,
+        "flow_id": str(det.flow_id),
+        "src_ip": str(det.src_ip),
+        "dst_ip": str(getattr(det, "dest_ip", "") or getattr(det, "dst_ip", "") or (event.get("dst_ip") if isinstance(event, dict) else "")),
+        "event_time": float(event.get("ts", time.time()) if isinstance(event, dict) else getattr(det, "timestamp_epoch", time.time())),
+    }]
+

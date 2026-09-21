@@ -9,8 +9,9 @@ Signals:
 
 from __future__ import annotations
 
-from ipaddress import ip_address, ip_network
-from typing import Dict, List, Optional
+import time
+from ipaddress import ip_address
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -31,7 +32,7 @@ def _is_internal(ip_str: str) -> bool:
 class ExfilDetector:
     """Detects data exfiltration from asymmetric byte ratios."""
 
-    def detect(self, row: pd.Series, context: Optional[Dict] = None) -> Optional[Detection]:
+    def detect(self, row: Union[pd.Series, dict], context: Optional[Dict] = None) -> Optional[Detection]:
         """Evaluate one flow record for exfiltration indicators.
 
         Uses pre-computed dataset features:
@@ -41,6 +42,23 @@ class ExfilDetector:
         """
         if context is None:
             context = {}
+
+        if isinstance(row, dict):
+            row = dict(row)
+            if "dest_ip" not in row and "dst_ip" in row:
+                row["dest_ip"] = row["dst_ip"]
+            if "dest_port" not in row and "dst_port" in row:
+                row["dest_port"] = row["dst_port"]
+            if "timestamp" not in row and "ts" in row:
+                row["timestamp"] = str(row["ts"])
+            if "bytes_to_server" not in row and "bytes_out" in row:
+                row["bytes_to_server"] = row["bytes_out"]
+            if "bytes_to_client" not in row and "bytes_in" in row:
+                row["bytes_to_client"] = row["bytes_in"]
+            if "upload_download_ratio" not in row:
+                b_out = float(row.get("bytes_to_server", 0))
+                b_in = max(1.0, float(row.get("bytes_to_client", 1)))
+                row["upload_download_ratio"] = b_out / b_in
 
         # ── Extract features ─────────────────────────────────────────
         src_ip = str(row.get("src_ip", ""))
@@ -109,3 +127,32 @@ class ExfilDetector:
         if z > config.EXFIL_ZSCORE_THRESHOLD:
             parts.append(f"ratio z-score {z:.1f} (well above normal)")
         return "; ".join(parts)
+
+
+_exfil_instance: Optional[ExfilDetector] = None
+
+
+def build_detector() -> ExfilDetector:
+    global _exfil_instance
+    if _exfil_instance is None:
+        _exfil_instance = ExfilDetector()
+    return _exfil_instance
+
+
+def evaluate(event: Union[dict, pd.Series], r: Any = None) -> Optional[List[dict]]:
+    """Contract 2 evaluation function for Cherenkov streaming pipeline."""
+    det = build_detector().detect(event)
+    if not det:
+        return None
+    ev = det.evidence
+    ev_list = [f"{k}: {v}" for k, v in ev.items()] if isinstance(ev, dict) else (ev if isinstance(ev, list) else [str(ev)])
+    return [{
+        "threat_class": det.threat_class,
+        "confidence": float(det.confidence),
+        "evidence": ev_list,
+        "flow_id": str(det.flow_id),
+        "src_ip": str(det.src_ip),
+        "dst_ip": str(getattr(det, "dest_ip", "") or getattr(det, "dst_ip", "") or (event.get("dst_ip") if isinstance(event, dict) else "")),
+        "event_time": float(event.get("ts", time.time()) if isinstance(event, dict) else getattr(det, "timestamp_epoch", time.time())),
+    }]
+

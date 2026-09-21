@@ -9,7 +9,8 @@ Signals:
 
 from __future__ import annotations
 
-from typing import Dict, Optional
+import time
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -21,7 +22,7 @@ from models.alert_schema import Detection
 class ScanDetector:
     """Detects reconnaissance / port scanning from fan-out patterns."""
 
-    def detect(self, row: pd.Series, context: Optional[Dict] = None) -> Optional[Detection]:
+    def detect(self, row: Union[pd.Series, dict], context: Optional[Dict] = None) -> Optional[Detection]:
         """Evaluate one flow record for port-scan indicators.
 
         Uses pre-computed dataset features:
@@ -30,6 +31,15 @@ class ScanDetector:
           - source_flow_count
           - flow_state
         """
+        if isinstance(row, dict):
+            row = dict(row)
+            if "dest_ip" not in row and "dst_ip" in row:
+                row["dest_ip"] = row["dst_ip"]
+            if "dest_port" not in row and "dst_port" in row:
+                row["dest_port"] = row["dst_port"]
+            if "timestamp" not in row and "ts" in row:
+                row["timestamp"] = str(row["ts"])
+
         # ── Extract features from dataset row ────────────────────────
         unique_ports = int(row.get("unique_destination_ports", 0))
         fanout = int(row.get("destination_fanout", 0))
@@ -82,3 +92,32 @@ class ScanDetector:
         if state in ("new", "S0", "REJ"):
             parts.append(f"connection state '{state}' (incomplete handshake)")
         return "; ".join(parts)
+
+
+_scan_instance: Optional[ScanDetector] = None
+
+
+def build_detector() -> ScanDetector:
+    global _scan_instance
+    if _scan_instance is None:
+        _scan_instance = ScanDetector()
+    return _scan_instance
+
+
+def evaluate(event: Union[dict, pd.Series], r: Any = None) -> Optional[List[dict]]:
+    """Contract 2 evaluation function for Cherenkov streaming pipeline."""
+    det = build_detector().detect(event)
+    if not det:
+        return None
+    ev = det.evidence
+    ev_list = [f"{k}: {v}" for k, v in ev.items()] if isinstance(ev, dict) else (ev if isinstance(ev, list) else [str(ev)])
+    return [{
+        "threat_class": det.threat_class,
+        "confidence": float(det.confidence),
+        "evidence": ev_list,
+        "flow_id": str(det.flow_id),
+        "src_ip": str(det.src_ip),
+        "dst_ip": str(getattr(det, "dest_ip", "") or getattr(det, "dst_ip", "") or (event.get("dst_ip") if isinstance(event, dict) else "")),
+        "event_time": float(event.get("ts", time.time()) if isinstance(event, dict) else getattr(det, "timestamp_epoch", time.time())),
+    }]
+

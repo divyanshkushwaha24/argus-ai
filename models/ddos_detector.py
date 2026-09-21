@@ -10,7 +10,8 @@ No training data needed.  The "model" is the recent past.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+import time
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -27,7 +28,7 @@ class DDoSDetector:
         self._flow_history: List[float] = []
         self._window_size = config.DDOS_FLOW_RATE_WINDOW
 
-    def detect(self, row: pd.Series, context: Optional[Dict] = None) -> Optional[Detection]:
+    def detect(self, row: Union[pd.Series, dict], context: Optional[Dict] = None) -> Optional[Detection]:
         """Evaluate one flow record for DDoS indicators.
 
         `context` may contain:
@@ -38,6 +39,16 @@ class DDoSDetector:
         """
         if context is None:
             context = {}
+
+        # Normalize dictionary keys if needed
+        if isinstance(row, dict):
+            row = dict(row)
+            if "dest_ip" not in row and "dst_ip" in row:
+                row["dest_ip"] = row["dst_ip"]
+            if "dest_port" not in row and "dst_port" in row:
+                row["dest_port"] = row["dst_port"]
+            if "timestamp" not in row and "ts" in row:
+                row["timestamp"] = str(row["ts"])
 
         # ── Use pre-computed dataset features ────────────────────────
         src_entropy = float(row.get("source_ip_entropy_in_file", 0))
@@ -113,3 +124,32 @@ class DDoSDetector:
         if count > 50:
             parts.append(f"{count} unique source IPs in window")
         return "; ".join(parts) if parts else "DDoS indicators detected"
+
+
+_ddos_instance: Optional[DDoSDetector] = None
+
+
+def build_detector() -> DDoSDetector:
+    global _ddos_instance
+    if _ddos_instance is None:
+        _ddos_instance = DDoSDetector()
+    return _ddos_instance
+
+
+def evaluate(event: Union[dict, pd.Series], r: Any = None) -> Optional[List[dict]]:
+    """Contract 2 evaluation function for Cherenkov streaming pipeline."""
+    det = build_detector().detect(event)
+    if not det:
+        return None
+    ev = det.evidence
+    ev_list = [f"{k}: {v}" for k, v in ev.items()] if isinstance(ev, dict) else (ev if isinstance(ev, list) else [str(ev)])
+    return [{
+        "threat_class": det.threat_class,
+        "confidence": float(det.confidence),
+        "evidence": ev_list,
+        "flow_id": str(det.flow_id),
+        "src_ip": str(det.src_ip),
+        "dst_ip": str(getattr(det, "dest_ip", "") or getattr(det, "dst_ip", "") or (event.get("dst_ip") if isinstance(event, dict) else "")),
+        "event_time": float(event.get("ts", time.time()) if isinstance(event, dict) else getattr(det, "timestamp_epoch", time.time())),
+    }]
+

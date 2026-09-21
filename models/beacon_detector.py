@@ -11,7 +11,8 @@ Start with CV; autocorrelation is a confirmation signal.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+import time
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -29,7 +30,7 @@ from models.alert_schema import Detection
 class BeaconDetector:
     """Detects periodic C2 beaconing from inter-arrival regularity."""
 
-    def detect(self, row: pd.Series, context: Optional[Dict] = None) -> Optional[Detection]:
+    def detect(self, row: Union[pd.Series, dict], context: Optional[Dict] = None) -> Optional[Detection]:
         """Evaluate one flow record for beaconing indicators.
 
         `context` may contain:
@@ -38,6 +39,16 @@ class BeaconDetector:
         """
         if context is None:
             context = {}
+
+        # Normalize dictionary keys if needed
+        if isinstance(row, dict):
+            row = dict(row)
+            if "dest_ip" not in row and "dst_ip" in row:
+                row["dest_ip"] = row["dst_ip"]
+            if "dest_port" not in row and "dst_port" in row:
+                row["dest_port"] = row["dst_port"]
+            if "timestamp" not in row and "ts" in row:
+                row["timestamp"] = str(row["ts"])
 
         # ── Use pre-computed dataset features ────────────────────────
         src_iat = float(row.get("src_interarrival_sec", 0))
@@ -123,3 +134,32 @@ class BeaconDetector:
         if period > 0:
             parts.append(f"estimated beacon interval {period:.1f}s")
         return "; ".join(parts)
+
+
+_beacon_instance: Optional[BeaconDetector] = None
+
+
+def build_detector() -> BeaconDetector:
+    global _beacon_instance
+    if _beacon_instance is None:
+        _beacon_instance = BeaconDetector()
+    return _beacon_instance
+
+
+def evaluate(event: Union[dict, pd.Series], r: Any = None) -> Optional[List[dict]]:
+    """Contract 2 evaluation function for Cherenkov streaming pipeline."""
+    det = build_detector().detect(event)
+    if not det:
+        return None
+    ev = det.evidence
+    ev_list = [f"{k}: {v}" for k, v in ev.items()] if isinstance(ev, dict) else (ev if isinstance(ev, list) else [str(ev)])
+    return [{
+        "threat_class": det.threat_class,
+        "confidence": float(det.confidence),
+        "evidence": ev_list,
+        "flow_id": str(det.flow_id),
+        "src_ip": str(det.src_ip),
+        "dst_ip": str(getattr(det, "dest_ip", "") or getattr(det, "dst_ip", "") or (event.get("dst_ip") if isinstance(event, dict) else "")),
+        "event_time": float(event.get("ts", time.time()) if isinstance(event, dict) else getattr(det, "timestamp_epoch", time.time())),
+    }]
+
