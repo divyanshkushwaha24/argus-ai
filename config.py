@@ -5,7 +5,12 @@ All tunables (thresholds, weights, network definitions) live here so they
 are easy to find, audit, and change without touching detector logic.
 """
 
+import os
 from ipaddress import ip_network
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ── Network topology ──────────────────────────────────────────────────
 # Which subnets are "internal".  Needed by the exfiltration detector to
@@ -83,7 +88,7 @@ INCIDENT_GAP_MINUTES = 10  # merge alerts from same host within this gap
 RECENCY_HALF_LIFE_MINUTES = 30  # exp(-age / half_life)
 
 # ── Infrastructure ───────────────────────────────────────────────────
-POSTGRES_DSN = "postgresql://cherenkov:cherenkov_dev_password@localhost:5432/cherenkov"
+POSTGRES_DSN = os.getenv("POSTGRES_DSN")
 REDIS_URL    = "redis://localhost:6379/0"
 
 # ── Paths ─────────────────────────────────────────────────────────────
