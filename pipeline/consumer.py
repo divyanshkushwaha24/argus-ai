@@ -345,6 +345,8 @@ def coerce_detection(item: Any, event: Mapping[str, Any], detector_name: str) ->
     ev = _field(item, "evidence")
     if isinstance(ev, str):
         ev = [ev]
+    elif isinstance(ev, Mapping):
+        ev = [f"{k}: {v}" for k, v in ev.items()]
     if not isinstance(ev, (list, tuple)) or not ev or not all(isinstance(s, str) and s.strip() for s in ev):
         raise ValueError("evidence must be a non-empty list of plain-language strings")
     flow_id = str(_field(item, "flow_id") or event.get("flow_id") or "")
@@ -563,17 +565,19 @@ class Metrics:
 
     def flush(self, r: redis.Redis, force: bool = False, interval: float = 2.0) -> None:
         now = time.time()
-        if not force and now - self._last_flush < interval:
-            return
-        self._last_flush = now
         epoch = r.get(self.keys.metrics_reset)
+        reset_happened = False
         if epoch != self._reset_epoch:
-            if self._reset_epoch is not None:  # a reset happened while we were running
+            if epoch is not None or self._reset_epoch is not None:  # a reset happened
                 self.alert_latency_ms.clear()
                 self.proc_ms.clear()
                 self._samples.clear()
                 self._flushed = dict(self.counters)
             self._reset_epoch = epoch
+            reset_happened = True
+        if not force and not reset_happened and now - self._last_flush < interval:
+            return
+        self._last_flush = now
         self._samples.append((now, self.counters["events_in"]))
         eps = 0.0
         if len(self._samples) >= 2 and self._samples[-1][0] > self._samples[0][0]:
@@ -591,6 +595,8 @@ class Metrics:
             "proc_p95_ms": f"{percentile(proc, 95):.3f}",
             "proc_p99_ms": f"{percentile(proc, 99):.3f}",
         }
+        if self._reset_epoch is not None:
+            mapping["reset_epoch"] = str(self._reset_epoch)
         pipe = r.pipeline(transaction=False)
         snapshot = dict(self.counters)
         for k, v in snapshot.items():
@@ -888,6 +894,20 @@ class Worker:
         correlate, self.correlator_name = resolve_correlator(cfg, self.r, self.keys)
         self.engine = AlertEngine(cfg, self.r, self.keys, self.sink, self.metrics, fusion, correlate)
         self._last_housekeeping = 0.0
+
+    def claim_slot(self, stop: threading.Event, wait_s: float = 0.0) -> None:
+        key = self.keys.hb(self.name)
+        val = self.r.get(key)
+        if val:
+            parts = str(val).split(":")
+            if parts and parts[0]:
+                try:
+                    other_pid = int(parts[0])
+                    if other_pid != os.getpid():
+                        raise RuntimeError(f"worker slot {self.name} already running by pid {other_pid}")
+                except ValueError:
+                    pass
+        self.r.set(key, f"{os.getpid()}:{time.time():.3f}", ex=15)
 
     def ensure_group(self) -> None:
         try:
@@ -1279,7 +1299,8 @@ class Supervisor:
             add("OK" if Path(self.args.pcap).exists() else "FAIL", "pcap", str(self.args.pcap))
             if not self.args.no_network:
                 if not sys.platform.startswith("linux"):
-                    add("FAIL", "platform", "veth/tc virtual tap needs Linux (use WSL2/VM); or pass --no-network")
+                    add("WARN", "platform", "veth/tc virtual tap needs Linux (use WSL2/VM/Docker); bypassing tap on macOS")
+                    self.args.no_network = True
                 elif _priv(cfg) and subprocess.run(_priv(cfg) + ["true"], capture_output=True).returncode != 0:
                     add("FAIL", "privileges", f"`{cfg.priv_prefix} true` failed: run `sudo -v` first or configure passwordless sudo for ip/tc/tcpreplay")
                 else:

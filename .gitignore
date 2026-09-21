@@ -12,3 +12,9 @@ venv/
 # OS noise
 .DS_Store
 Thumbs.db
+
+# Editor & Test noise
+tempCodeRunnerFile.py
+*.tempCodeRunnerFile.py
+.pytest_cache/
+.vscode/
