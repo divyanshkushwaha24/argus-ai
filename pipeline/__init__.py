@@ -1,0 +1,4 @@
+"""
+Cherenkov pipeline package.
+"""
+
