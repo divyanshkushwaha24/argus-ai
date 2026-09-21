@@ -82,6 +82,35 @@ services:
     command: ["streamlit", "run", "dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
     restart: unless-stopped
 
+  zeek:
+    image: zeek/zeek:latest
+    container_name: cherenkov-zeek
+    profiles: ["sensors", "full"]
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    network_mode: host
+    volumes:
+      - ./data/replay:/pcap:ro
+      - ./data/sample_logs/live/zeek:/data
+      - ./ingest/zeek_config/local.zeek:/usr/local/zeek/share/zeek/site/local.zeek:ro
+    command: ["zeek", "-C", "-i", "veth1", "local"]
+    restart: unless-stopped
+
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: cherenkov-suricata
+    profiles: ["sensors", "full"]
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    network_mode: host
+    volumes:
+      - ./data/replay:/pcap:ro
+      - ./data/sample_logs/live/suricata:/var/log/suricata
+    command: ["suricata", "-i", "veth1", "-k", "none"]
+    restart: unless-stopped
+
 volumes:
   redis-data:
   postgres-data:

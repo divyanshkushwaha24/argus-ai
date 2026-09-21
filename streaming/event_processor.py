@@ -58,10 +58,13 @@ CONNECTION_LOG_TYPES = {"conn", "flow"}  # one record per actual connection/flow
 # ---------------------------------------------------------------------
 
 def normalize_zeek(log_type: str, raw: dict) -> dict:
+    flow_id = raw.get("uid") or f"{raw.get('id.orig_h')}:{raw.get('id.orig_p')}-{raw.get('id.resp_h')}:{raw.get('id.resp_p')}"
     return {
         "source": "zeek",
         "log_type": log_type,
+        "event_type": log_type,
         "ts": float(raw.get("ts", time.time())),
+        "flow_id": str(flow_id),
         "uid": raw.get("uid"),
         "src_ip": raw.get("id.orig_h"),
         "src_port": raw.get("id.orig_p"),
@@ -70,10 +73,14 @@ def normalize_zeek(log_type: str, raw: dict) -> dict:
         "proto": raw.get("proto"),
         "orig_bytes": raw.get("orig_bytes"),
         "resp_bytes": raw.get("resp_bytes"),
+        "bytes_out": raw.get("orig_bytes"),
+        "bytes_in": raw.get("resp_bytes"),
         "duration": raw.get("duration"),
         "conn_state": raw.get("conn_state"),
         "query": raw.get("query"),        # populated on dns.log rows
+        "dns_query": raw.get("query"),
         "qtype": raw.get("qtype_name"),   # populated on dns.log rows
+        "dns_qtype": raw.get("qtype_name"),
         "ja3": None,                      # Zeek needs the salesforce/ja3 zkg
                                            # package for this -- see
                                            # ingest/zeek_config/local.zeek
@@ -99,11 +106,14 @@ def normalize_suricata(raw: dict) -> dict:
     tls = raw.get("tls") or {}
     dns = raw.get("dns") or {}
     ja3 = (tls.get("ja3") or {}).get("hash")
+    flow_id = raw.get("flow_id") or f"{raw.get('src_ip')}:{raw.get('src_port')}-{raw.get('dest_ip')}:{raw.get('dest_port')}"
 
     return {
         "source": "suricata",
         "log_type": event_type,
+        "event_type": event_type,
         "ts": _parse_suricata_ts(raw.get("timestamp")),
+        "flow_id": str(flow_id),
         "uid": raw.get("flow_id"),
         "src_ip": raw.get("src_ip"),
         "src_port": raw.get("src_port"),
@@ -112,10 +122,14 @@ def normalize_suricata(raw: dict) -> dict:
         "proto": raw.get("proto"),
         "orig_bytes": flow.get("bytes_toserver"),
         "resp_bytes": flow.get("bytes_toclient"),
+        "bytes_out": flow.get("bytes_toserver"),
+        "bytes_in": flow.get("bytes_toclient"),
         "duration": None,
         "conn_state": flow.get("state"),
         "query": dns.get("rrname"),
+        "dns_query": dns.get("rrname"),
         "qtype": dns.get("rrtype"),
+        "dns_qtype": dns.get("rrtype"),
         "ja3": ja3,
         "raw": raw,
     }
@@ -209,18 +223,25 @@ def main():
     parser.add_argument("--eve-json", default="data/sample_logs/portscan/suricata/eve.json", help="path to Suricata's eve.json")
     parser.add_argument("--redis-host", default="localhost")
     parser.add_argument("--redis-port", type=int, default=6379)
+    parser.add_argument("--stream", default=os.getenv("CHERENKOV_STREAM", "cherenkov:events"),
+                        help="Redis stream key to publish normalized events")
     parser.add_argument("--ja3-blacklist", default="data/ja3_blacklist/blacklist.csv")
     parser.add_argument("--no-from-start", action="store_true",
                          help="skip existing log content, only process new lines")
     args = parser.parse_args()
     from_start = not args.no_from_start
 
-    r = redis.Redis(host=args.redis_host, port=args.redis_port, decode_responses=True)
+    redis_url = os.getenv("REDIS_URL")
+    if redis_url:
+        r = redis.Redis.from_url(redis_url, decode_responses=True)
+    else:
+        r = redis.Redis(host=args.redis_host, port=args.redis_port, decode_responses=True)
+
     try:
         r.ping()
     except redis.exceptions.ConnectionError as e:
-        print(f"cannot reach Redis at {args.redis_host}:{args.redis_port} -- "
-              f"is `docker-compose up -d` running? ({e})")
+        endpoint = redis_url or f"{args.redis_host}:{args.redis_port}"
+        print(f"cannot reach Redis at {endpoint} -- is `docker-compose up -d` running? ({e})")
         sys.exit(1)
 
     store = StateStore(r)
@@ -251,6 +272,15 @@ def main():
             source, log_type, raw = q.get()
             event = normalize_zeek(log_type, raw) if source == "zeek" else normalize_suricata(raw)
             dispatch(store, blacklist, event)
+
+            # Contract 1: Publish normalized event to Redis stream for detection workers
+            stream_event = {k: v for k, v in event.items() if k != "raw" and v is not None}
+            try:
+                r.xadd(args.stream, {"data": json.dumps(stream_event, default=str)}, maxlen=200_000, approximate=True)
+            except Exception as exc:
+                if processed % 100 == 0:
+                    print(f"warning: failed to publish to stream {args.stream}: {exc}")
+
             processed += 1
             if processed % 50 == 0:
                 print(f"processed {processed} events")

@@ -77,3 +77,49 @@ def test_valid_incident():
 
     assert incident.alert_count == 4
     assert incident.combined_risk == 94
+
+
+def test_writer_accepts_models_and_dicts():
+    from unittest.mock import MagicMock, patch
+    from alerting import writer
+
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+    with patch.object(writer, "_get_connection", return_value=mock_conn):
+        # 1. Pydantic Alert
+        alert_model = make_alert()
+        writer.write_alert(alert_model)
+        assert mock_cursor.execute.called
+
+        # 2. Pipeline Dict Alert
+        alert_dict = {
+            "alert_id": str(uuid4()),
+            "timestamp": "2026-09-21T10:00:00Z",
+            "flow_id": "test-flow-dict",
+            "threat_class": "ddos",
+            "confidence": 0.9,
+            "risk_score": 80,
+            "severity": "HIGH",
+            "evidence": ["evidence 1"],
+            "incident_id": "INC-000001",
+            "src_ip": "192.168.1.100",
+            "dst_ip": "10.0.0.1",
+        }
+        writer.write_alert(alert_dict)
+        assert mock_cursor.execute.call_count >= 2
+
+        # 3. Incident dict upsert
+        incident_dict = {
+            "incident_id": "INC-000001",
+            "src_ip": "192.168.1.100",
+            "first_seen": "2026-09-21T10:00:00Z",
+            "last_seen": "2026-09-21T10:05:00Z",
+            "alert_count": 2,
+            "risk_score": 85,
+            "severity": "HIGH",
+            "threat_classes": ["ddos"],
+        }
+        writer.upsert_incident(incident_dict)
+        assert mock_cursor.execute.call_count >= 3

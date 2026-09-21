@@ -121,6 +121,11 @@ CREATE TABLE IF NOT EXISTS public.alerts (
 
     incident_id UUID NULL,
 
+    src_ip VARCHAR(64) NULL,
+    dest_ip VARCHAR(64) NULL,
+    risk_level VARCHAR(10) NULL,
+    explanation TEXT NULL,
+
     CONSTRAINT fk_alert_incident
         FOREIGN KEY (incident_id)
         REFERENCES public.incidents (incident_id)
@@ -146,6 +151,9 @@ CREATE INDEX IF NOT EXISTS idx_alerts_threat_class
 
 CREATE INDEX IF NOT EXISTS idx_alerts_incident_id
     ON public.alerts (incident_id);
+
+CREATE INDEX IF NOT EXISTS idx_alerts_src_ip
+    ON public.alerts (src_ip);
 
 CREATE INDEX IF NOT EXISTS idx_incidents_source_ip
     ON public.incidents (source_ip);

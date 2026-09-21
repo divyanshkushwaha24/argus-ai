@@ -14,6 +14,8 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
+from datetime import datetime
 
 # Add project root to path so imports work when running from dashboard/
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -291,11 +293,21 @@ def format_evidence(evidence_str) -> str:
 
 # ── Main dashboard ───────────────────────────────────────────────────
 def main():
+    now_str = datetime.now().strftime("%H:%M:%S")
+
+    # Sidebar controls
+    with st.sidebar:
+        st.markdown("### ⚙️ Telemetry Stream")
+        auto_refresh = st.checkbox("Live Auto-Refresh (2s)", value=True, help="Automatically refresh threat telemetry every 2 seconds")
+        st.caption(f"Last updated: {now_str}")
+
     # Header
-    st.markdown("""
+    pulse_dot = '<span class="status-dot"></span>' if auto_refresh else '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#94a3b8;margin-right:6px;"></span>'
+    stream_state = f"LIVE STREAM &bull; PULSE {now_str}" if auto_refresh else "STREAM PAUSED"
+    st.markdown(f"""
     <div class="main-header">
         <div class="telemetry-badge">
-            <span class="status-dot"></span> LIVE INGEST &bull; READ-ONLY ENCLAVE
+            {pulse_dot} {stream_state} &bull; READ-ONLY ENCLAVE
         </div>
         <h1>ARGUS AI <span style="font-weight: 400; color: #64748b;">// Threat Intelligence</span></h1>
         <p>Passive network telemetry &bull; Zero-intrusion streaming detection &bull; Air-gapped enclave buffer</p>
@@ -541,12 +553,17 @@ def main():
         )
 
     # ── Auto-refresh / Status Footer ─────────────────────────────────
-    st.markdown("""
+    status_label = f"LIVE STREAM ACTIVE &bull; LAST PULSE: {now_str}" if auto_refresh else "LIVE STREAM PAUSED"
+    st.markdown(f"""
     <div class="footer-bar">
         <span>ARGUS AI</span> &bull; READ-ONLY ENCLAVE &bull; PASSIVE INGEST ENGINE<br>
-        POLLING LOCAL TELEMETRY BUFFER EVERY 2.0s &bull; AIR-GAPPED FROM PRODUCTION FABRIC
+        {status_label} &bull; AIR-GAPPED FROM PRODUCTION FABRIC
     </div>
     """, unsafe_allow_html=True)
+
+    if auto_refresh:
+        time.sleep(2.0)
+        st.rerun()
 
 
 if __name__ == "__main__":
