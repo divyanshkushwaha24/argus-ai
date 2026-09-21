@@ -1,0 +1,13 @@
+.venv
+.git
+.gitignore
+.DS_Store
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.vscode
+ingest_out/
+data/raw/logs/
+

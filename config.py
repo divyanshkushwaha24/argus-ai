@@ -91,7 +91,7 @@ RECENCY_HALF_LIFE_MINUTES = 30  # exp(-age / half_life)
 
 # ── Infrastructure ───────────────────────────────────────────────────
 POSTGRES_DSN = os.getenv("POSTGRES_DSN")
-REDIS_URL    = "redis://localhost:6379/0"
+REDIS_URL    = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 # ── Paths ─────────────────────────────────────────────────────────────
 MODEL_SAVE_DIR = "models/saved"

@@ -1,14 +1,6 @@
-version: "3.9"
-
-# Cherenkov — shared infra for the whole team.
-# Zeek and Suricata are deliberately NOT services here yet.
-# Reason: they need either a real/virtual network interface (live capture)
-# or a mounted pcap (offline analysis). On Windows + Docker Desktop,
-# `network_mode: host` for raw packet capture is unreliable, so for now
-# they're run directly via `ingest/replay.sh` against pcap files.
-# Once the team is testing on a Linux ingest box (native `--net=host`
-# works cleanly there), promote them into this file as long-running
-# services watching a real or replay interface.
+# Argus AI / Cherenkov — Unified Docker Infrastructure
+# Provides full containerization for Redis, PostgreSQL, Streamlit Dashboard,
+# and the Cherenkov Streaming Detection Pipeline.
 
 services:
   redis:
@@ -19,6 +11,11 @@ services:
     volumes:
       - redis-data:/data
     command: ["redis-server", "--save", "60", "1"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     restart: unless-stopped
 
   postgres:
@@ -27,13 +24,62 @@ services:
     environment:
       POSTGRES_DB: cherenkov
       POSTGRES_USER: cherenkov
-      # local-dev password only — move to an env file / secret before
-      # this ever runs anywhere but a laptop.
       POSTGRES_PASSWORD: cherenkov_dev_password
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cherenkov -d cherenkov"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cherenkov-pipeline
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      POSTGRES_DSN: postgresql://cherenkov:cherenkov_dev_password@postgres:5432/cherenkov
+      CHERENKOV_PG_HOST: postgres
+      CHERENKOV_PG_PORT: 5432
+      CHERENKOV_LOG_DIR: /app/data/raw/logs
+    volumes:
+      - ./data:/app/data
+      - ./dataset:/app/dataset:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    command: ["python", "-m", "pipeline.consumer", "up", "--auto-start", "--no-network"]
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cherenkov-dashboard
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      POSTGRES_DSN: postgresql://cherenkov:cherenkov_dev_password@postgres:5432/cherenkov
+      CHERENKOV_PG_HOST: postgres
+      CHERENKOV_PG_PORT: 5432
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["streamlit", "run", "dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
     restart: unless-stopped
 
 volumes:
