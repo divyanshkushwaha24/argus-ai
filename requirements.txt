@@ -16,3 +16,7 @@ psycopg2-binary>=2.9
 pydantic>=2.0
 python-dotenv>=1.0
 pytest>=8.0
+
+# Streaming & Pipeline
+redis>=5.0
+fakeredis>=2.0
