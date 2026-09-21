@@ -31,93 +31,237 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ── Custom CSS for premium dark theme ────────────────────────────────
+# ── Custom CSS for minimalist Redis.io inspired theme ───────────────
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
+    /* Global Typography & Palette (Redis.io Light Theme) */
     .stApp {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        background-color: #f8fafc !important;
+        color: #1e293b !important;
     }
 
-    /* KPI Cards */
-    .kpi-card {
-        background: linear-gradient(135deg, rgba(30,30,50,0.9), rgba(20,20,40,0.95));
-        border: 1px solid rgba(100,100,255,0.15);
-        border-radius: 12px;
-        padding: 20px;
-        text-align: center;
-        backdrop-filter: blur(10px);
+    header[data-testid="stHeader"] {
+        background-color: #f8fafc !important;
     }
-    .kpi-value {
-        font-size: 2.2rem;
-        font-weight: 700;
-        margin: 5px 0;
+
+    h1, h2, h3, h4, .main-header h1, .section-header {
+        font-family: 'Space Grotesk', -apple-system, sans-serif !important;
+        letter-spacing: -0.025em;
+        color: #0f172a !important;
+    }
+
+    p, span, label, .stMarkdown p {
+        color: #334155;
+    }
+
+    code, pre, .mono-text {
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+
+    /* Minimalist KPI Cards (Redis.io style) */
+    .kpi-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 18px 20px;
+        text-align: left;
+        position: relative;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .kpi-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
     }
     .kpi-label {
-        font-size: 0.85rem;
-        opacity: 0.7;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #64748b;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.08em;
+        margin-bottom: 6px;
     }
-    .kpi-critical { color: #ff4757; }
-    .kpi-high     { color: #ff6b35; }
-    .kpi-medium   { color: #ffa502; }
-    .kpi-low      { color: #2ed573; }
-    .kpi-total    { color: #70a1ff; }
+    .kpi-value {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+    }
+    .kpi-critical { color: #dc2626; }
+    .kpi-high     { color: #ea580c; }
+    .kpi-medium   { color: #0284c7; }
+    .kpi-low      { color: #059669; }
+    .kpi-total    { color: #0f172a; }
 
     /* Alert table risk level badges */
     .risk-critical {
-        background: linear-gradient(135deg, #ff4757, #c0392b);
-        color: white; padding: 3px 10px; border-radius: 12px;
-        font-weight: 600; font-size: 0.75rem;
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 600;
+        font-size: 0.72rem;
     }
     .risk-high {
-        background: linear-gradient(135deg, #ff6b35, #e67e22);
-        color: white; padding: 3px 10px; border-radius: 12px;
-        font-weight: 600; font-size: 0.75rem;
+        background: #ffedd5;
+        color: #9a3412;
+        border: 1px solid #fdba74;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 600;
+        font-size: 0.72rem;
     }
     .risk-medium {
-        background: linear-gradient(135deg, #ffa502, #f39c12);
-        color: white; padding: 3px 10px; border-radius: 12px;
-        font-weight: 600; font-size: 0.75rem;
+        background: #e0f2fe;
+        color: #075985;
+        border: 1px solid #7dd3fc;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 600;
+        font-size: 0.72rem;
     }
     .risk-low {
-        background: linear-gradient(135deg, #2ed573, #27ae60);
-        color: white; padding: 3px 10px; border-radius: 12px;
-        font-weight: 600; font-size: 0.75rem;
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #86efac;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 600;
+        font-size: 0.72rem;
     }
 
-    /* Header */
+    /* Header Bar */
     .main-header {
-        text-align: center;
-        padding: 10px 0 20px 0;
+        padding: 24px 0 20px 0;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .telemetry-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #475569;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 9999px;
+        padding: 3px 11px;
+        margin-bottom: 12px;
+    }
+    .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: #10b981;
+        box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
     }
     .main-header h1 {
-        font-size: 2rem;
+        font-size: 2.1rem;
         font-weight: 700;
-        background: linear-gradient(90deg, #70a1ff, #7c4dff, #ff6b35);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 5px;
+        color: #0f172a !important;
+        margin: 0 0 6px 0;
+        line-height: 1.2;
     }
     .main-header p {
-        opacity: 0.6;
+        color: #64748b !important;
         font-size: 0.9rem;
+        font-weight: 400;
+        margin: 0;
     }
 
     /* Section headers */
     .section-header {
-        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 1.05rem;
         font-weight: 600;
-        margin: 15px 0 10px 0;
-        padding-bottom: 5px;
-        border-bottom: 1px solid rgba(100,100,255,0.2);
+        color: #0f172a !important;
+        margin: 28px 0 14px 0;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .section-tag {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.68rem;
+        color: #dc2626;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 4px;
+        padding: 2px 7px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
     }
 
+    /* Tables & Frames */
     div[data-testid="stDataFrame"] {
-        border-radius: 8px;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 8px !important;
         overflow: hidden;
+        background: #ffffff !important;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03);
+    }
+    div[data-testid="stDataFrame"] table {
+        font-family: 'JetBrains Mono', monospace !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+    }
+
+    /* Streamlit controls & inputs */
+    div[data-baseweb="select"] > div {
+        background-color: #ffffff !important;
+        border-color: #cbd5e1 !important;
+        border-radius: 6px !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.85rem !important;
+        color: #0f172a !important;
+    }
+    div[data-baseweb="tag"] {
+        background-color: #f1f5f9 !important;
+        color: #1e293b !important;
+        border-radius: 4px !important;
+        border: 1px solid #e2e8f0 !important;
+    }
+    div[data-baseweb="tag"] span {
+        color: #1e293b !important;
+    }
+    label[data-testid="stWidgetLabel"] p {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.72rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.06em !important;
+        color: #475569 !important;
+        font-weight: 600 !important;
+    }
+
+    /* Footer */
+    .footer-bar {
+        text-align: center;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.72rem;
+        color: #64748b;
+        padding: 32px 0 16px 0;
+        margin-top: 48px;
+        border-top: 1px solid #e2e8f0;
+        line-height: 1.7;
+    }
+    .footer-bar span {
+        color: #0f172a;
+        font-weight: 600;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -150,8 +294,11 @@ def main():
     # Header
     st.markdown("""
     <div class="main-header">
-        <h1>🛡️ Argus AI — Threat Intelligence Dashboard</h1>
-        <p>Passive network monitoring • Read-only ingest • Streaming detection</p>
+        <div class="telemetry-badge">
+            <span class="status-dot"></span> LIVE INGEST &bull; READ-ONLY ENCLAVE
+        </div>
+        <h1>ARGUS AI <span style="font-weight: 400; color: #64748b;">// Threat Intelligence</span></h1>
+        <p>Passive network telemetry &bull; Zero-intrusion streaming detection &bull; Air-gapped enclave buffer</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -215,18 +362,18 @@ def main():
         col_left, col_right = st.columns(2)
 
         with col_left:
-            st.markdown('<div class="section-header">📊 Threat Distribution</div>',
+            st.markdown('<div class="section-header"><span class="section-tag">01 // TELEMETRY</span> Threat Distribution</div>',
                         unsafe_allow_html=True)
             if "threat_class" in df.columns:
                 threat_counts = df["threat_class"].value_counts()
-                # Color mapping for threats
+                # Redis-inspired threat palette
                 colors = {
-                    "ddos": "#ff4757",
-                    "beacon": "#ffa502",
-                    "dns_tunnel": "#7c4dff",
-                    "ja3_malware": "#ff6b35",
-                    "portscan": "#70a1ff",
-                    "exfil": "#2ed573",
+                    "ddos": "#ef4444",
+                    "beacon": "#f59e0b",
+                    "dns_tunnel": "#a855f7",
+                    "ja3_malware": "#f97316",
+                    "portscan": "#0284c7",
+                    "exfil": "#10b981",
                 }
                 import plotly.express as px
                 fig = px.pie(
@@ -234,44 +381,63 @@ def main():
                     names=threat_counts.index,
                     color=threat_counts.index,
                     color_discrete_map=colors,
-                    hole=0.45,
+                    hole=0.55,
                 )
                 fig.update_layout(
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
-                    font_color="white",
+                    font_color="#475569",
+                    font_family="Inter, sans-serif",
                     margin=dict(t=10, b=10, l=10, r=10),
-                    height=300,
-                    legend=dict(orientation="h", y=-0.1),
+                    height=280,
+                    legend=dict(
+                        orientation="h",
+                        y=-0.15,
+                        font=dict(size=10, family="JetBrains Mono, monospace", color="#475569"),
+                    ),
                 )
-                fig.update_traces(textposition='inside', textinfo='label+percent')
+                fig.update_traces(
+                    textposition='inside',
+                    textinfo='label+percent',
+                    insidetextfont=dict(family="JetBrains Mono, monospace", size=11, color="#ffffff"),
+                    marker=dict(line=dict(color='#ffffff', width=2)),
+                )
                 st.plotly_chart(fig, use_container_width=True)
 
         with col_right:
-            st.markdown('<div class="section-header">📈 Risk Score Distribution</div>',
+            st.markdown('<div class="section-header"><span class="section-tag">02 // SPECTRUM</span> Risk Score Distribution</div>',
                         unsafe_allow_html=True)
             if "risk_score" in df.columns:
                 import plotly.express as px
                 fig = px.histogram(
                     df, x="risk_score",
                     nbins=20,
-                    color_discrete_sequence=["#7c4dff"],
-                    labels={"risk_score": "Risk Score", "count": "Alert Count"},
+                    color_discrete_sequence=["#ef4444"],
+                    labels={"risk_score": "RISK SCORE", "count": "COUNT"},
                 )
                 fig.update_layout(
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
-                    font_color="white",
+                    font_color="#475569",
+                    font_family="Inter, sans-serif",
                     margin=dict(t=10, b=30, l=40, r=10),
-                    height=300,
-                    xaxis=dict(gridcolor="rgba(100,100,255,0.1)"),
-                    yaxis=dict(gridcolor="rgba(100,100,255,0.1)"),
-                    bargap=0.1,
+                    height=280,
+                    xaxis=dict(
+                        gridcolor="rgba(0, 0, 0, 0.05)",
+                        tickfont=dict(family="JetBrains Mono, monospace", size=10, color="#64748b"),
+                        title_font=dict(family="JetBrains Mono, monospace", size=10, color="#475569"),
+                    ),
+                    yaxis=dict(
+                        gridcolor="rgba(0, 0, 0, 0.05)",
+                        tickfont=dict(family="JetBrains Mono, monospace", size=10, color="#64748b"),
+                        title_font=dict(family="JetBrains Mono, monospace", size=10, color="#475569"),
+                    ),
+                    bargap=0.15,
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
         # ── Alert Table ──────────────────────────────────────────────
-        st.markdown('<div class="section-header">🚨 Live Alert Feed</div>',
+        st.markdown('<div class="section-header"><span class="section-tag">03 // REAL-TIME FEED</span> Live Alerts</div>',
                     unsafe_allow_html=True)
 
         # Filters
@@ -323,14 +489,14 @@ def main():
             if "evidence" in display_df.columns:
                 display_df["evidence"] = display_df["evidence"].apply(format_evidence)
 
-            # Color code by risk level
+            # Color code by risk level with subtle light-mode Redis-like tints
             def highlight_risk(row):
                 level = row.get("risk_level", "LOW")
                 colors = {
-                    "CRITICAL": "background-color: rgba(255,71,87,0.3)",
-                    "HIGH":     "background-color: rgba(255,107,53,0.2)",
-                    "MEDIUM":   "background-color: rgba(255,165,2,0.15)",
-                    "LOW":      "background-color: rgba(46,213,115,0.1)",
+                    "CRITICAL": "background-color: #fef2f2; color: #991b1b; font-weight: 500;",
+                    "HIGH":     "background-color: #fff7ed; color: #9a3412; font-weight: 500;",
+                    "MEDIUM":   "background-color: #f0f9ff; color: #075985; font-weight: 500;",
+                    "LOW":      "background-color: #f0fdf4; color: #166534; font-weight: 500;",
                 }
                 color = colors.get(level, "")
                 return [color] * len(row)
@@ -344,7 +510,7 @@ def main():
 
         # ── Incident Summary ─────────────────────────────────────────
         if "incident_id" in df.columns and df["incident_id"].notna().any():
-            st.markdown('<div class="section-header">🔗 Incident Correlation</div>',
+            st.markdown('<div class="section-header"><span class="section-tag">04 // CORRELATION</span> Incident Clusters</div>',
                         unsafe_allow_html=True)
 
             incidents = df.groupby("incident_id").agg({
@@ -374,12 +540,11 @@ def main():
             "📭 No alerts yet. Run `python pipeline.py` to populate the alert database."
         )
 
-    # ── Auto-refresh ─────────────────────────────────────────────────
-    # Streamlit re-runs the script every 2 seconds
+    # ── Auto-refresh / Status Footer ─────────────────────────────────
     st.markdown("""
-    <div style="text-align: center; opacity: 0.4; font-size: 0.75rem; margin-top: 30px;">
-        Argus AI • Read-Only Monitoring Enclave • Passive Ingest Only<br>
-        Dashboard polls database every 2s — no connection to production network
+    <div class="footer-bar">
+        <span>ARGUS AI</span> &bull; READ-ONLY ENCLAVE &bull; PASSIVE INGEST ENGINE<br>
+        POLLING LOCAL TELEMETRY BUFFER EVERY 2.0s &bull; AIR-GAPPED FROM PRODUCTION FABRIC
     </div>
     """, unsafe_allow_html=True)
 
