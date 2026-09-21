@@ -12,8 +12,11 @@ Usage:
 
 from __future__ import annotations
 
+from pathlib import Path
 import sys
 import time
+
+__path__ = [str(Path(__file__).resolve().parent / "pipeline")]
 from typing import List
 
 import pandas as pd
