@@ -58,6 +58,27 @@ def _coerce_uuid(val: Any) -> UUID:
         return uuid.uuid5(uuid.NAMESPACE_DNS, str(val))
 
 
+_CANONICAL_TO_DASHBOARD = {
+    "ddos": "ddos",
+    "DDOS": "ddos",
+    "beacon": "beacon",
+    "c2_beaconing": "beacon",
+    "C2_BEACONING": "beacon",
+    "dns_tunnel": "dns_tunnel",
+    "dga_dns_tunneling": "dns_tunnel",
+    "DGA_DNS_TUNNELING": "dns_tunnel",
+    "ja3_malware": "ja3_malware",
+    "encrypted_malware": "ja3_malware",
+    "ENCRYPTED_MALWARE": "ja3_malware",
+    "portscan": "portscan",
+    "recon_port_scan": "portscan",
+    "RECON_PORT_SCAN": "portscan",
+    "exfil": "exfil",
+    "data_exfiltration": "exfil",
+    "DATA_EXFILTRATION": "exfil",
+}
+
+
 def write_alert(alert: Alert | Mapping[str, Any]) -> None:
     """
     Insert one Alert into PostgreSQL.
@@ -69,7 +90,8 @@ def write_alert(alert: Alert | Mapping[str, Any]) -> None:
         alert_id = str(alert.alert_id)
         timestamp = alert.timestamp
         flow_id = alert.flow_id
-        threat_class = alert.threat_class.value if hasattr(alert.threat_class, "value") else str(alert.threat_class)
+        tc_raw = alert.threat_class.value if hasattr(alert.threat_class, "value") else str(alert.threat_class)
+        threat_class = _CANONICAL_TO_DASHBOARD.get(tc_raw, _CANONICAL_TO_DASHBOARD.get(tc_raw.lower(), tc_raw.lower()))
         confidence = float(alert.confidence)
         risk_score = int(alert.risk_score)
         severity = alert.severity.value if hasattr(alert.severity, "value") else str(alert.severity)
@@ -85,8 +107,8 @@ def write_alert(alert: Alert | Mapping[str, Any]) -> None:
         alert_id = str(_coerce_uuid(alert["alert_id"]))
         timestamp = alert.get("timestamp") or alert.get("event_time")
         flow_id = str(alert.get("flow_id", "unknown"))
-        tc = str(alert.get("threat_class", "unknown")).lower()
-        threat_class = tc
+        tc_raw = str(alert.get("threat_class", "unknown"))
+        threat_class = _CANONICAL_TO_DASHBOARD.get(tc_raw, _CANONICAL_TO_DASHBOARD.get(tc_raw.lower(), tc_raw.lower()))
         confidence = float(alert.get("confidence", 0.0))
         risk_score = int(alert.get("risk_score", 0))
         severity = str(alert.get("severity") or alert.get("risk_level") or "LOW").upper()

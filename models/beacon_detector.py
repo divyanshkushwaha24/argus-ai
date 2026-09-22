@@ -12,7 +12,7 @@ Start with CV; autocorrelation is a confirmation signal.
 from __future__ import annotations
 
 import time
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -23,15 +23,22 @@ from features.statistical import (
     interarrival_times,
     dominant_autocorr_lag,
     fft_dominant_frequency,
+    autocorrelation,
 )
 from models.alert_schema import Detection
 
 
 class BeaconDetector:
-    """Detects periodic C2 beaconing from inter-arrival regularity."""
+    """Stateful detector for periodic C2 beaconing."""
 
-    def detect(self, row: Union[pd.Series, dict], context: Optional[Dict] = None) -> Optional[Detection]:
-        """Evaluate one flow record for beaconing indicators.
+    def __init__(self):
+        # Per-source tracking of flow timestamps
+        # {src_ip: [timestamp, ...]}
+        self._history: Dict[str, list] = {}
+
+    def detect(self, row: Union[pd.Series, dict],
+               context: Optional[Dict] = None) -> Optional[Detection]:
+        """Detect beaconing from a flow record or streaming context.
 
         `context` may contain:
           - peer_timestamps: list of epoch timestamps for this src→dst pair
@@ -43,10 +50,6 @@ class BeaconDetector:
         # Normalize dictionary keys if needed
         if isinstance(row, dict):
             row = dict(row)
-            if "dest_ip" not in row and "dst_ip" in row:
-                row["dest_ip"] = row["dst_ip"]
-            if "dest_port" not in row and "dst_port" in row:
-                row["dest_port"] = row["dst_port"]
             if "timestamp" not in row and "ts" in row:
                 row["timestamp"] = str(row["ts"])
 

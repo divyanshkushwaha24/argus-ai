@@ -52,6 +52,24 @@ DGA_ENTROPY_BENIGN_MAX    = 3.0     # typical benign domain entropy ceiling
 TLS_BLOCKLIST_CONFIDENCE  = 0.95    # confidence if JA3 is on blocklist
 
 # ── Risk fusion weights ──────────────────────────────────────────────
+# Fusion weights per threat class: (P, A, S, R)
+FUSION_PARAMS = {
+    "ddos":              (0.45, 0.25, 0.20, 0.10),
+    "beacon":            (0.45, 0.20, 0.25, 0.10),
+    "dns_tunnel":        (0.50, 0.15, 0.25, 0.10),
+    "ja3_malware":       (0.50, 0.15, 0.25, 0.10),
+    "portscan":          (0.40, 0.20, 0.30, 0.10),
+    "exfil":             (0.40, 0.20, 0.30, 0.10),
+    # Streaming uppercase aliases
+    "DDOS":              (0.45, 0.25, 0.20, 0.10),
+    "C2_BEACONING":      (0.45, 0.20, 0.25, 0.10),
+    "DGA_DNS_TUNNELING": (0.50, 0.15, 0.25, 0.10),
+    "ENCRYPTED_MALWARE": (0.50, 0.15, 0.25, 0.10),
+    "RECON_PORT_SCAN":   (0.40, 0.20, 0.30, 0.10),
+    "DATA_EXFILTRATION": (0.40, 0.20, 0.30, 0.10),
+}
+
+# Fallback weights if threat class is not in FUSION_PARAMS
 # P = detector confidence, A = anomaly score, S = severity prior, R = recency
 FUSION_WEIGHT_P = 0.50
 FUSION_WEIGHT_A = 0.20
@@ -60,12 +78,18 @@ FUSION_WEIGHT_R = 0.10
 
 # Severity priors per threat class (domain-expert judgement)
 SEVERITY_PRIORS = {
-    "ddos":        0.80,
-    "beacon":      0.90,
-    "dns_tunnel":  0.70,
-    "ja3_malware": 0.85,
-    "portscan":    0.50,
-    "exfil":       0.95,
+    "ddos":              0.75,
+    "beacon":            0.85,
+    "dns_tunnel":        0.65,
+    "ja3_malware":       0.70,
+    "portscan":          0.30,
+    "exfil":             0.90,
+    "DDOS":              0.75,
+    "C2_BEACONING":      0.85,
+    "DGA_DNS_TUNNELING": 0.65,
+    "ENCRYPTED_MALWARE": 0.70,
+    "RECON_PORT_SCAN":   0.30,
+    "DATA_EXFILTRATION": 0.90,
 }
 
 # Risk level thresholds
@@ -90,7 +114,7 @@ INCIDENT_GAP_MINUTES = 10  # merge alerts from same host within this gap
 RECENCY_HALF_LIFE_MINUTES = 30  # exp(-age / half_life)
 
 # ── Infrastructure ───────────────────────────────────────────────────
-POSTGRES_DSN = os.getenv("POSTGRES_DSN")
+POSTGRES_DSN = os.getenv("POSTGRES_DSN", "postgresql://cherenkov:cherenkov_dev_password@localhost:5432/cherenkov")
 REDIS_URL    = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 # ── Paths ─────────────────────────────────────────────────────────────

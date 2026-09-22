@@ -127,25 +127,45 @@ _ALIASES = {
     "botnet_c2": "C2_BEACONING",
     "dga": "DGA_DNS_TUNNELING", "dns_tunnel": "DGA_DNS_TUNNELING",
     "dns_tunneling": "DGA_DNS_TUNNELING", "dns_tunnelling": "DGA_DNS_TUNNELING",
+    "ja3_malware": "ENCRYPTED_MALWARE", "ja3": "ENCRYPTED_MALWARE",
     "tls_malware": "ENCRYPTED_MALWARE", "encrypted_session_malware": "ENCRYPTED_MALWARE",
     "scan": "RECON_PORT_SCAN", "port_scan": "RECON_PORT_SCAN", "portscan": "RECON_PORT_SCAN",
     "recon": "RECON_PORT_SCAN",
     "exfil": "DATA_EXFILTRATION", "exfiltration": "DATA_EXFILTRATION",
 }
+import config
+
 _ALIASES.update({c.lower(): c for c in THREAT_CLASSES})
+
+# Mapping canonical uppercase threat classes to detector lowercase strings
+_CANONICAL_TO_LOWER: dict[str, str] = {
+    "DDOS": "ddos",
+    "C2_BEACONING": "beacon",
+    "DGA_DNS_TUNNELING": "dns_tunnel",
+    "ENCRYPTED_MALWARE": "ja3_malware",
+    "RECON_PORT_SCAN": "portscan",
+    "DATA_EXFILTRATION": "exfil",
+}
 
 SEVERITIES = ("LOW", "MEDIUM", "HIGH", "CRITICAL")
 
-# Fusion parameters: weights (w1..w4 = P_detector, A_anomaly, S_severity_prior, R_recency)
-# and severity prior S. PROVISIONAL engineering defaults, see docs/model_notes.md s4.
-# models/fusion.py, once it exists, becomes the single owner of these numbers.
+# Fusion parameters: derived from config.py (single source of truth)
+# Maps canonical uppercase THREAT_CLASSES to their tuned weights in config.py via _CANONICAL_TO_LOWER
 FUSION_PARAMS: dict[str, tuple[tuple[float, float, float, float], float]] = {
-    "DDOS":              ((0.45, 0.25, 0.20, 0.10), 0.75),
-    "C2_BEACONING":      ((0.45, 0.20, 0.25, 0.10), 0.85),
-    "DGA_DNS_TUNNELING": ((0.50, 0.15, 0.25, 0.10), 0.65),
-    "ENCRYPTED_MALWARE": ((0.50, 0.15, 0.25, 0.10), 0.70),
-    "RECON_PORT_SCAN":   ((0.40, 0.20, 0.30, 0.10), 0.30),
-    "DATA_EXFILTRATION": ((0.40, 0.20, 0.30, 0.10), 0.90),
+    cls: (
+        config.FUSION_PARAMS.get(
+            _CANONICAL_TO_LOWER.get(cls, cls.lower()),
+            config.FUSION_PARAMS.get(
+                cls,
+                (config.FUSION_WEIGHT_P, config.FUSION_WEIGHT_A, config.FUSION_WEIGHT_S, config.FUSION_WEIGHT_R)
+            )
+        ),
+        config.SEVERITY_PRIORS.get(
+            _CANONICAL_TO_LOWER.get(cls, cls.lower()),
+            config.SEVERITY_PRIORS.get(cls, 0.5)
+        ),
+    )
+    for cls in THREAT_CLASSES
 }
 
 MODE_CHOICES = ("original", "pps", "mbps", "multiplier", "topspeed")
@@ -491,7 +511,19 @@ def load_detectors(cfg: Config) -> list[ManagedDetector]:
 # Fusion (contract 3): reference implementation of docs/model_notes.md s4
 # ---------------------------------------------------------------------------
 def fuse_builtin(threat_class: str, p_detector: float, a_anomaly: float, recency: float) -> int:
-    weights, prior = FUSION_PARAMS[threat_class]
+    if threat_class in FUSION_PARAMS:
+        weights, prior = FUSION_PARAMS[threat_class]
+    else:
+        try:
+            canonical = canonical_threat_class(threat_class)
+            weights, prior = FUSION_PARAMS[canonical]
+        except Exception:
+            lower = str(threat_class).strip().lower()
+            weights = config.FUSION_PARAMS.get(
+                lower,
+                (config.FUSION_WEIGHT_P, config.FUSION_WEIGHT_A, config.FUSION_WEIGHT_S, config.FUSION_WEIGHT_R)
+            )
+            prior = config.SEVERITY_PRIORS.get(lower, 0.5)
     x = weights[0] * _clip01(p_detector) + weights[1] * _clip01(a_anomaly) + weights[2] * prior + weights[3] * _clip01(recency)
     return _round_half_up(100.0 * _clip01(x))
 

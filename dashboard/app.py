@@ -285,10 +285,14 @@ def format_evidence(evidence_str) -> str:
             ev = json.loads(evidence_str)
         else:
             ev = evidence_str
-        reason = ev.get("reason", "")
-        return reason if reason else str(ev)[:100]
-    except (json.JSONDecodeError, TypeError):
-        return str(evidence_str)[:100]
+        if isinstance(ev, dict):
+            reason = ev.get("reason", "")
+            return reason if reason else str(ev)[:120]
+        elif isinstance(ev, (list, tuple)):
+            return "; ".join(str(x) for x in ev)[:120]
+        return str(ev)[:120]
+    except Exception:
+        return str(evidence_str)[:120]
 
 
 # ── Main dashboard ───────────────────────────────────────────────────
@@ -381,11 +385,22 @@ def main():
                 # Redis-inspired threat palette
                 colors = {
                     "ddos": "#ef4444",
+                    "DDOS": "#ef4444",
                     "beacon": "#f59e0b",
+                    "c2_beaconing": "#f59e0b",
+                    "C2_BEACONING": "#f59e0b",
                     "dns_tunnel": "#a855f7",
+                    "dga_dns_tunneling": "#a855f7",
+                    "DGA_DNS_TUNNELING": "#a855f7",
                     "ja3_malware": "#f97316",
+                    "encrypted_malware": "#f97316",
+                    "ENCRYPTED_MALWARE": "#f97316",
                     "portscan": "#0284c7",
+                    "recon_port_scan": "#0284c7",
+                    "RECON_PORT_SCAN": "#0284c7",
                     "exfil": "#10b981",
+                    "data_exfiltration": "#10b981",
+                    "DATA_EXFILTRATION": "#10b981",
                 }
                 import plotly.express as px
                 fig = px.pie(

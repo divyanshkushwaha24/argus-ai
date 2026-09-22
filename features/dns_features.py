@@ -11,10 +11,12 @@ from __future__ import annotations
 import math
 import string
 from collections import Counter
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
+
+from features.statistical import string_char_entropy
 
 
 # ── English bigram frequencies ────────────────────────────────────────
@@ -84,19 +86,36 @@ DGA_FEATURE_COLS = [
 ]
 
 
-def extract_dga_features(row: pd.Series) -> Dict[str, float]:
-    """Extract the feature vector for one row of the dataset.
+def extract_dga_features(row: Union[pd.Series, dict]) -> Dict[str, float]:
+    """Extract the feature vector for one row of the dataset or streaming event.
 
-    Adds the ngram_score computed from dns_query (if available).
+    Computes lexical features and ngram_score dynamically from dns_query if raw query is provided.
     """
+    query = str(row.get("dns_query") or row.get("query") or "").strip()
     features = {}
-    for col in DGA_FEATURE_COLS:
-        if col == "ngram_score":
-            query = row.get("dns_query", "")
-            features[col] = ngram_score(query) if isinstance(query, str) and query else 0.0
-        else:
-            val = row.get(col, 0)
-            features[col] = float(val) if pd.notna(val) else 0.0
+
+    has_lexical = "dns_query_length" in row and pd.notna(row.get("dns_query_length")) and float(row.get("dns_query_length", 0)) > 0
+
+    if not has_lexical and query:
+        sub = query.split(".")[0] if "." in query else query
+        features["dns_query_length"] = float(len(query))
+        features["dns_entropy"] = float(string_char_entropy(sub))
+        features["dns_digit_ratio"] = float(sum(c.isdigit() for c in query) / max(1, len(query)))
+        features["dns_label_count"] = float(len(query.split(".")))
+        features["dns_longest_label"] = float(max((len(lbl) for lbl in query.split(".")), default=0))
+        features["dns_unique_bigram_count"] = float(len(set(query[i:i+2] for i in range(len(query)-1))))
+        features["dns_unique_trigram_count"] = float(len(set(query[i:i+3] for i in range(len(query)-2))))
+        features["dns_event_count"] = float(row.get("dns_event_count", 1) or 1)
+        features["dns_unique_domain_count_per_flow"] = float(row.get("dns_unique_domain_count_per_flow", 1) or 1)
+        features["dns_max_query_length_per_flow"] = float(row.get("dns_max_query_length_per_flow", len(query)) or len(query))
+        features["ngram_score"] = float(ngram_score(query))
+    else:
+        for col in DGA_FEATURE_COLS:
+            if col == "ngram_score":
+                features[col] = ngram_score(query) if query else 0.0
+            else:
+                val = row.get(col, 0)
+                features[col] = float(val) if pd.notna(val) else 0.0
     return features
 
 

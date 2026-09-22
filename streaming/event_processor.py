@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import queue
 import sys
@@ -81,10 +82,13 @@ def normalize_zeek(log_type: str, raw: dict) -> dict:
         "dst_ip": raw.get("id.resp_h"),
         "dst_port": raw.get("id.resp_p"),
         "proto": raw.get("proto"),
+        "app_proto": raw.get("service"),
         "orig_bytes": raw.get("orig_bytes"),
         "resp_bytes": raw.get("resp_bytes"),
         "bytes_out": raw.get("orig_bytes"),
         "bytes_in": raw.get("resp_bytes"),
+        "pkts_toserver": raw.get("orig_pkts"),
+        "pkts_toclient": raw.get("resp_pkts"),
         "duration": raw.get("duration"),
         "conn_state": raw.get("conn_state"),
         "query": raw.get("query"),        # populated on dns.log rows
@@ -115,8 +119,14 @@ def normalize_suricata(raw: dict) -> dict:
     flow = raw.get("flow") or {}
     tls = raw.get("tls") or {}
     dns = raw.get("dns") or {}
-    ja3 = (tls.get("ja3") or {}).get("hash")
+    ja3 = (tls.get("ja3") or {}).get("hash") or raw.get("ja3") or raw.get("ja3_hash")
     flow_id = raw.get("flow_id") or f"{raw.get('src_ip')}:{raw.get('src_port')}-{raw.get('dest_ip')}:{raw.get('dest_port')}"
+
+    dns_query = dns.get("rrname")
+    dns_qtype = dns.get("rrtype")
+    if not dns_query and isinstance(dns.get("queries"), list) and dns["queries"]:
+        dns_query = dns["queries"][0].get("rrname")
+        dns_qtype = dns["queries"][0].get("rrtype")
 
     return {
         "source": "suricata",
@@ -130,16 +140,19 @@ def normalize_suricata(raw: dict) -> dict:
         "dst_ip": raw.get("dest_ip"),
         "dst_port": raw.get("dest_port"),
         "proto": raw.get("proto"),
+        "app_proto": raw.get("app_proto"),
         "orig_bytes": flow.get("bytes_toserver"),
         "resp_bytes": flow.get("bytes_toclient"),
         "bytes_out": flow.get("bytes_toserver"),
         "bytes_in": flow.get("bytes_toclient"),
-        "duration": None,
+        "pkts_toserver": flow.get("pkts_toserver"),
+        "pkts_toclient": flow.get("pkts_toclient"),
+        "duration": float(flow.get("age", 0.001)) if flow.get("age") is not None else None,
         "conn_state": flow.get("state"),
-        "query": dns.get("rrname"),
-        "dns_query": dns.get("rrname"),
-        "qtype": dns.get("rrtype"),
-        "dns_qtype": dns.get("rrtype"),
+        "query": dns_query,
+        "dns_query": dns_query,
+        "qtype": dns_qtype,
+        "dns_qtype": dns_qtype,
         "ja3": ja3,
         "raw": raw,
     }
@@ -223,6 +236,91 @@ def dispatch(store: StateStore, blacklist: set, event: dict) -> None:
         fingerprint.check_ja3(store, src_ip, event["ja3"], blacklist, ts)
 
 
+def enrich_streaming_features(store: StateStore, event: dict) -> dict:
+    """Query StateStore → inject aggregate features into the event dict."""
+
+    # ── Fix field name mismatch ONCE here, before ANY detector sees the event ──
+    if "dst_ip" in event and "dest_ip" not in event:
+        event["dest_ip"] = event["dst_ip"]
+    if "dst_port" in event and "dest_port" not in event:
+        event["dest_port"] = event["dst_port"]
+    if "conn_state" in event and "flow_state" not in event:
+        event["flow_state"] = event["conn_state"]
+    if "ja3" in event and "ja3_hash" not in event:
+        event["ja3_hash"] = event["ja3"]
+
+    src_ip = event.get("src_ip")
+    dst_ip = event.get("dst_ip") or event.get("dest_ip")
+
+    # 1. Fanout & unique destination ports / IPs
+    if src_ip:
+        event["unique_destination_ports"] = store.set_cardinality(f"fanout:dst_ports:{src_ip}") or 1
+        event["destination_fanout"] = event["unique_destination_ports"]
+        event["unique_destination_ips"] = store.set_cardinality(f"fanout:dst_ips:{src_ip}") or 1
+        event["source_flow_count"] = store.ts_count(f"fanout:attempts:{src_ip}", window_s=600.0) or 1
+
+    # 2. Inter-arrival time for beaconing
+    if src_ip and dst_ip:
+        ts_list = store.ts_timestamps(f"periodicity:{src_ip}:{dst_ip}", window_s=600.0)
+        if len(ts_list) >= 2:
+            diffs = [ts_list[i] - ts_list[i - 1] for i in range(1, len(ts_list))]
+            event["src_interarrival_sec"] = float(sum(diffs) / len(diffs)) if diffs else 0.0
+        else:
+            event["src_interarrival_sec"] = 0.0
+
+    # 3. Real Shannon entropy for DDoS detection (Bug 1 fix)
+    if dst_ip:
+        hit_counts = store.get_hit_counts(f"entropy:dst_sources:{dst_ip}")
+        if hit_counts:
+            total = sum(hit_counts.values())
+            source_ip_entropy = -sum(
+                (count / total) * math.log2(count / total)
+                for count in hit_counts.values()
+                if count > 0
+            )
+            source_ip_count = len(hit_counts)
+        else:
+            source_ip_entropy = 0.0
+            source_ip_count = 1
+        event["source_ip_entropy_in_file"] = source_ip_entropy
+        event["source_ip_count_in_file"] = source_ip_count
+
+    # 4. Exfiltration byte/packet rates and ratios
+    bytes_out = float(event.get("bytes_out") or event.get("orig_bytes") or 0)
+    bytes_in = float(event.get("bytes_in") or event.get("resp_bytes") or 0)
+    duration = float(event.get("duration") or 0.001)
+    event["bytes_to_server"] = bytes_out
+    event["bytes_to_client"] = bytes_in
+    event["total_bytes"] = bytes_out + bytes_in
+    event["upload_download_ratio"] = bytes_out / max(1.0, bytes_in)
+    event["byte_rate"] = (bytes_out + bytes_in) / max(0.001, duration)
+
+    # 5. Packets and Anomaly Model features
+    pkts_out = float(event.get("pkts_toserver") or event.get("packets_to_server") or 0)
+    pkts_in = float(event.get("pkts_toclient") or event.get("packets_to_client") or 0)
+    total_pkts = pkts_out + pkts_in
+    event["packets_to_server"] = pkts_out
+    event["packets_to_client"] = pkts_in
+    event["total_packets"] = total_pkts
+    event["average_packet_size"] = (bytes_out + bytes_in) / max(1.0, total_pkts)
+    event["flow_duration"] = duration
+    event["packet_rate"] = total_pkts / max(0.001, duration)
+
+    # 6. Protocol event indicators
+    is_tls = bool(event.get("ja3") or event.get("ja3_hash") or event.get("app_proto") == "tls" or event.get("log_type") == "ssl")
+    event["tls_event_count"] = 1 if is_tls else 0
+
+    is_dns = bool(event.get("dns_query") or event.get("query") or event.get("log_type") == "dns" or event.get("event_type") == "dns")
+    if is_dns and src_ip:
+        event["dns_event_count"] = store.ts_count(f"entropy:dns_events:{src_ip}", window_s=600.0) or 1
+    elif is_dns:
+        event["dns_event_count"] = 1
+    else:
+        event["dns_event_count"] = 0
+
+    return event
+
+
 # ---------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------
@@ -284,6 +382,7 @@ def main():
             if not event.get("src_ip"):
                 continue
             dispatch(store, blacklist, event)
+            enrich_streaming_features(store, event)
 
             # Contract 1: Publish normalized event to Redis stream for detection workers
             stream_event = {k: v for k, v in event.items() if k != "raw" and v is not None}

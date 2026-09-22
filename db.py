@@ -40,7 +40,7 @@ def get_connection():
 
     if HAS_POSTGRES:
         try:
-            _conn = psycopg2.connect(config.POSTGRES_DSN)
+            _conn = psycopg2.connect(config.POSTGRES_DSN, connect_timeout=2)
             _conn.autocommit = True
             return _conn
         except Exception:
@@ -53,8 +53,14 @@ def get_connection():
     return _conn
 
 
+_table_initialized = False
+
+
 def create_alerts_table():
     """Create the alerts table if it doesn't exist."""
+    global _table_initialized
+    if _table_initialized:
+        return
     conn = get_connection()
     sql = """
     CREATE TABLE IF NOT EXISTS alerts (
@@ -96,15 +102,24 @@ def create_alerts_table():
         with conn.cursor() as cur:
             cur.execute(sql)
             cur.execute("ALTER TABLE alerts ADD COLUMN IF NOT EXISTS severity TEXT")
+            cur.execute("ALTER TABLE alerts ADD COLUMN IF NOT EXISTS src_port INTEGER")
+            cur.execute("ALTER TABLE alerts ADD COLUMN IF NOT EXISTS dest_port INTEGER")
+            cur.execute("ALTER TABLE alerts ADD COLUMN IF NOT EXISTS anomaly_score REAL")
+            cur.execute("ALTER TABLE alerts ADD COLUMN IF NOT EXISTS severity_prior REAL")
+            cur.execute("ALTER TABLE alerts ADD COLUMN IF NOT EXISTS recency REAL")
             cur.execute(incidents_sql)
     else:
         conn.execute(sql)
         try:
-            conn.execute("ALTER TABLE alerts ADD COLUMN severity TEXT")
-        except sqlite3.OperationalError:
-            pass  # column already exists
+            cur = conn.execute("PRAGMA table_info(alerts)")
+            cols = [r[1] for r in cur.fetchall()]
+            if "severity" not in cols:
+                conn.execute("ALTER TABLE alerts ADD COLUMN severity TEXT")
+        except Exception:
+            pass
         conn.execute(incidents_sql)
         conn.commit()
+    _table_initialized = True
 
 
 def insert_alert(alert: Alert):

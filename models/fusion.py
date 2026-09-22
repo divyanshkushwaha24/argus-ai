@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import math
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 import config
 from models.alert_schema import Detection, Alert, risk_level_from_score
@@ -53,20 +53,37 @@ def compute_recency(timestamp_str: str, now: Optional[datetime] = None) -> float
     return math.exp(-age_minutes / config.RECENCY_HALF_LIFE_MINUTES)
 
 
-def fuse(detection: Detection, row=None, reference_time: Optional[datetime] = None) -> Alert:
-    """Turn a Detection into a scored Alert.
+def fuse(detection_or_threat_class: Any, *args, **kwargs) -> Any:
+    """Turn a Detection into a scored Alert, or fuse 4 signals into a 0-100 risk score.
 
-    Parameters
-    ----------
-    detection : Detection
-        Raw detector output.
-    row : pd.Series, optional
-        Original flow record (for anomaly scoring).
-    reference_time : datetime, optional
-        "Now" for recency computation.  Defaults to UTC now.
+    Supports dual invocation:
+      1. Batch mode: fuse(detection: Detection, row=None, reference_time=None) -> Alert
+      2. Streaming mode: fuse(threat_class: str, p: float, a: float, recency: float) -> int
     """
+    if isinstance(detection_or_threat_class, str):
+        threat_class = detection_or_threat_class
+        p = float(args[0]) if len(args) > 0 else float(kwargs.get("p_detector", kwargs.get("p", 0.0)))
+        a = float(args[1]) if len(args) > 1 else float(kwargs.get("a_anomaly", kwargs.get("a", 0.0)))
+        r = float(args[2]) if len(args) > 2 else float(kwargs.get("recency", kwargs.get("r", 1.0)))
+
+        w_P, w_A, w_S, w_R = config.FUSION_PARAMS.get(
+            threat_class.lower(),
+            config.FUSION_PARAMS.get(
+                threat_class,
+                (config.FUSION_WEIGHT_P, config.FUSION_WEIGHT_A,
+                 config.FUSION_WEIGHT_S, config.FUSION_WEIGHT_R)
+            )
+        )
+        S = config.SEVERITY_PRIORS.get(threat_class.lower(), config.SEVERITY_PRIORS.get(threat_class, 0.5))
+        raw = w_P * p + w_A * a + w_S * S + w_R * r
+        return int(round(min(100, max(0, raw * 100))))
+
+    detection: Detection = detection_or_threat_class
+    row = args[0] if len(args) > 0 else kwargs.get("row")
+    reference_time = args[1] if len(args) > 1 else kwargs.get("reference_time")
+
     P = detection.confidence
-    S = config.SEVERITY_PRIORS.get(detection.threat_class, 0.5)
+    S = config.SEVERITY_PRIORS.get(detection.threat_class.lower(), config.SEVERITY_PRIORS.get(detection.threat_class, 0.5))
 
     # Anomaly score from Isolation Forest
     A = 0.0
@@ -79,13 +96,16 @@ def fuse(detection: Detection, row=None, reference_time: Optional[datetime] = No
     # Recency
     R = compute_recency(detection.timestamp, reference_time)
 
-    # Weighted sum → 0–100
-    raw = (
-        config.FUSION_WEIGHT_P * P
-        + config.FUSION_WEIGHT_A * A
-        + config.FUSION_WEIGHT_S * S
-        + config.FUSION_WEIGHT_R * R
+    # Weighted sum → 0–100 using per-threat weights
+    w_P, w_A, w_S, w_R = config.FUSION_PARAMS.get(
+        detection.threat_class.lower(),
+        config.FUSION_PARAMS.get(
+            detection.threat_class,
+            (config.FUSION_WEIGHT_P, config.FUSION_WEIGHT_A,
+             config.FUSION_WEIGHT_S, config.FUSION_WEIGHT_R)
+        )
     )
+    raw = w_P * P + w_A * A + w_S * S + w_R * R
     risk_score = int(round(min(100, max(0, raw * 100))))
     risk_level = risk_level_from_score(risk_score)
 

@@ -9,7 +9,7 @@ from features.statistical import shannon_entropy
 
 def record_destination_hit(store: Any, dst_ip: str, src_ip: str, ts: float) -> None:
     """Track source IPs hitting a destination IP (used for DDoS source entropy)."""
-    store.record_set_add(f"entropy:dst_sources:{dst_ip}", src_ip)
+    store.record_hit_count(f"entropy:dst_sources:{dst_ip}", src_ip)
     store.record_ts(f"entropy:hits:{dst_ip}", float(ts or 0.0), src_ip)
 
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import time
 from ipaddress import ip_address
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -23,14 +23,14 @@ from models.alert_schema import Detection
 def _is_internal(ip_str: str) -> bool:
     """Check if an IP address belongs to any configured internal subnet."""
     try:
-        addr = ip_address(ip_str)
-        return any(addr in net for net in config.INTERNAL_SUBNETS)
-    except (ValueError, TypeError):
+        ip = ip_address(ip_str)
+        return any(ip in net for net in config.INTERNAL_SUBNETS)
+    except ValueError:
         return False
 
 
 class ExfilDetector:
-    """Detects data exfiltration from asymmetric byte ratios."""
+    """Detects data exfiltration from high upload/download byte ratios."""
 
     def detect(self, row: Union[pd.Series, dict], context: Optional[Dict] = None) -> Optional[Detection]:
         """Evaluate one flow record for exfiltration indicators.
@@ -45,10 +45,6 @@ class ExfilDetector:
 
         if isinstance(row, dict):
             row = dict(row)
-            if "dest_ip" not in row and "dst_ip" in row:
-                row["dest_ip"] = row["dst_ip"]
-            if "dest_port" not in row and "dst_port" in row:
-                row["dest_port"] = row["dst_port"]
             if "timestamp" not in row and "ts" in row:
                 row["timestamp"] = str(row["ts"])
             if "bytes_to_server" not in row and "bytes_out" in row:

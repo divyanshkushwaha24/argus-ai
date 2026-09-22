@@ -15,7 +15,8 @@ Features (from dataset + engineered):
 from __future__ import annotations
 
 import os
-from typing import Dict, Optional, Tuple
+import time
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import joblib
 import numpy as np
@@ -104,10 +105,6 @@ class DGAModel:
 
         if isinstance(row, dict):
             row = dict(row)
-            if "dest_ip" not in row and "dst_ip" in row:
-                row["dest_ip"] = row["dst_ip"]
-            if "dest_port" not in row and "dst_port" in row:
-                row["dest_port"] = row["dst_port"]
             if "timestamp" not in row and "ts" in row:
                 row["timestamp"] = str(row["ts"])
             if "dns_query" not in row and "query" in row:

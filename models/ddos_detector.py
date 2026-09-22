@@ -11,7 +11,7 @@ No training data needed.  The "model" is the recent past.
 from __future__ import annotations
 
 import time
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -43,10 +43,6 @@ class DDoSDetector:
         # Normalize dictionary keys if needed
         if isinstance(row, dict):
             row = dict(row)
-            if "dest_ip" not in row and "dst_ip" in row:
-                row["dest_ip"] = row["dst_ip"]
-            if "dest_port" not in row and "dst_port" in row:
-                row["dest_port"] = row["dst_port"]
             if "timestamp" not in row and "ts" in row:
                 row["timestamp"] = str(row["ts"])
 

@@ -239,21 +239,31 @@ def generate_fresh_dataset(output_path: str = "data/synthetic/fresh_flows.csv") 
         rows.append(f)
 
     # 6. TLS Malware / Suspicious Encrypted Sessions
-    n_tls = random.randint(2, 6)
+    n_tls = random.randint(3, 7)
+    malware_ja3_pool = [
+        "e7d705a3286e19ea42f587b344ee6865",  # Argus Lab synthetic malware ClientHello
+        "a0e9f5d64349fb13191bc781f81f42e1",  # Cobalt Strike Malleable C2
+        "6734f37431670ce18779794dd34f4aa0",  # TrickBot / Emotet
+        "51c64c77e60f3980eea90869b68c58a8",  # AsyncRAT
+    ]
     for i in range(n_tls):
+        selected_ja3 = random.choice(malware_ja3_pool)
         f = make_base_flow("ja3_malware", scanner_ip, beacon_c2_ip, 443, proto="TCP")
         f["tls_event_count"] = 1
         f["sni"] = f"node-{random.randint(100, 999)}.telemetry-c2.net"
         f["tls_version"] = "TLS 1.2"
-        f["bytes_to_server"] = random.randint(600, 1800)
-        f["bytes_to_client"] = random.randint(400, 1200)
+        f["ja3_hash"] = selected_ja3
+        f["ja3_string"] = "771,49195-49199-49196-49200-158-159,0-10-11,29-23-24,0"
+        f["bytes_to_server"] = random.randint(220, 280)
+        f["bytes_to_client"] = random.randint(54, 90)
         f["total_bytes"] = f["bytes_to_server"] + f["bytes_to_client"]
-        f["packets_to_server"] = random.randint(8, 20)
-        f["packets_to_client"] = random.randint(6, 15)
+        f["packets_to_server"] = random.randint(2, 3)
+        f["packets_to_client"] = 1
         f["total_packets"] = f["packets_to_server"] + f["packets_to_client"]
-        f["flow_duration"] = random.uniform(0.1, 0.6)
+        f["flow_duration"] = random.uniform(0.01, 0.05)
         f["upload_download_ratio"] = float(f["bytes_to_server"]) / max(1.0, float(f["bytes_to_client"]))
         f["average_packet_size"] = float(f["total_bytes"]) / max(1, f["total_packets"])
+        f["source_flow_count"] = n_tls
         rows.append(f)
 
     # 7. Benign Control Traffic: 10-20 normal web and DNS queries
