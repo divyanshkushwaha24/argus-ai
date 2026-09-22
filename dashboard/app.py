@@ -455,9 +455,13 @@ def main():
         # Filters
         filter_col1, filter_col2, filter_col3 = st.columns(3)
         with filter_col1:
+            known_threats = ["ddos", "beacon", "dns_tunnel", "ja3_malware", "portscan", "exfil"]
+            dynamic_threats = df["threat_class"].unique().tolist() if "threat_class" in df.columns else []
+            all_threats = sorted(list(set(known_threats + dynamic_threats)))
+            
             threat_filter = st.multiselect(
                 "Threat Class",
-                options=sorted(df["threat_class"].unique()) if "threat_class" in df.columns else [],
+                options=all_threats,
                 default=[],
                 key="threat_filter",
             )
