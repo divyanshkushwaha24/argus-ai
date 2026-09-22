@@ -396,6 +396,8 @@ def main():
     parser.add_argument("--pcap", type=str, default=None, help="Specific PCAP to replay (defaults to all synthetic threats)")
     parser.add_argument("--native", action="store_true", help="Force native Suricata packet capture (requires sudo, suricata, tcpreplay)")
     parser.add_argument("--simulated", action="store_true", default=False, help="Force userspace real-time EVE streamer mode")
+    parser.add_argument("--no-reset", action="store_true", help="Resume previous session without archiving and clearing active database")
+    parser.add_argument("--fresh-synthetic", action="store_true", default=False, help="Regenerate dynamic synthetic flows and PCAPs before starting")
     parser.add_argument("--no-replay", action="store_true", help="Passive capture mode: do not inject synthetic traffic")
     parser.add_argument("--no-network", action="store_true", help="Skip veth interface creation (assume interfaces exist)")
     parser.add_argument("--teardown", action="store_true", help="Tear down veth tap interfaces on exit")
@@ -444,15 +446,20 @@ def main():
         print("  ⚡ Active Engine: High-Fidelity Real-Time EVE Streamer (userspace live simulation).")
         print("     Continuously ingesting and analyzing live IP traffic across all 6 threat vectors.")
 
-    # Ensure database schema is ready
-    try:
-        import db
-        db.create_alerts_table()
-        if args.clear_alerts:
-            db.clear_alerts()
-            print("  ✓ Database alerts reset for a fresh real-time session.")
-    except Exception as exc:
-        print(f"⚠️  Database initialization warning: {exc}")
+    # 1b. Archive Previous Session & Clear Database (Fresh Sessional Reset)
+    if not args.no_reset:
+        try:
+            import db
+            archived = db.archive_and_reset_session(reason="rerun_reset")
+            if archived:
+                print(f"  📦 Archived previous run to {archived['file_name']} ({archived['total_alerts']} alerts preserved in data/history/)")
+            else:
+                db.clear_alerts()
+            print("  ✓ Active database reset: Starting fresh analysis session from 0 threats.")
+        except Exception as exc:
+            print(f"⚠️  Database session archival warning: {exc}")
+    else:
+        print("  ℹ️  Resuming previous session without database reset (--no-reset).")
 
     # 2. Network Tap Setup
     if use_native and not args.no_network:
@@ -474,12 +481,38 @@ def main():
     log_dir_path.mkdir(parents=True, exist_ok=True)
     eve_json = log_dir_path / "eve.json"
 
-    # Reset eve.json so event processor reads only new real-time events
+    # Reset previous logs so only new sessional events are processed
+    for stale in [eve_json, log_dir_path / "suricata.log", log_dir_path / "fast.log"]:
+        if stale.exists():
+            try:
+                stale.unlink()
+            except OSError:
+                pass
+    eve_json.touch(exist_ok=True)
+
+    # Clear previous Redis streaming events & sliding window state
     try:
-        with open(eve_json, "w", encoding="utf-8") as f:
-            f.truncate(0)
-    except OSError:
-        pass
+        import redis
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        r_client = redis.Redis.from_url(redis_url, decode_responses=True)
+        pipe = r_client.pipeline(transaction=False)
+        for k in r_client.scan_iter("cherenkov:*"):
+            pipe.delete(k)
+        pipe.execute()
+        print("  ✓ Redis streaming buffer & sliding windows reset for fresh session.")
+    except Exception as exc:
+        print(f"  ⚠️  Redis reset note: {exc}")
+
+    # Regenerate fresh synthetic flows & PCAP files if requested
+    if args.fresh_synthetic:
+        gen_script = ROOT / "ingest" / "generate_fresh_dataset.py"
+        if gen_script.exists():
+            print("  🔄 Generating fresh synthetic flows & PCAP telemetry...")
+            try:
+                subprocess.run([sys.executable, str(gen_script)], check=False, cwd=str(ROOT), timeout=30)
+                print("  ✓ Fresh synthetic files generated.")
+            except Exception as exc:
+                print(f"  ⚠️  Synthetic generator notice: {exc}")
 
     try:
         # 3. Sensor Setup (Native Suricata or Real-Time EVE Streamer)
@@ -597,6 +630,27 @@ def main():
         mgr.stop_all(rx_iface=args.rx_iface)
         if args.teardown and use_native and not args.no_network:
             teardown_virtual_tap(tx=args.tx_iface)
+
+        # Archive active session on termination so history is immediately recorded
+        try:
+            import db
+            stats = db.get_alert_stats()
+            total_active = stats.get("total_alerts", 0)
+            if total_active > 0:
+                print("\n" + "=" * 75)
+                print("📦 Preserving active session to HISTORY LOGS...")
+                archived = db.archive_and_reset_session(reason="session_terminated")
+                if archived:
+                    print(f"  ✓ Session ID: {archived['session_id']}")
+                    print(f"  ✓ Saved to Database Table: 'history_logs'")
+                    print(f"  ✓ Saved to File: {archived.get('file_path') or archived.get('file_name')}")
+                    print(f"  ✓ Consolidated Index: data/history_logs/history_logs.json & .csv")
+                    print(f"  ✓ Archived {archived['total_alerts']} alerts | {archived['total_incidents']} incidents across {len(archived['by_threat_class'])} threat classes.")
+                    print(f"  ✓ Active DB reset to 0 threats for next run.")
+                print("=" * 75)
+        except Exception as exc:
+            print(f"⚠️  Failed to archive session on shutdown: {exc}")
+
         print("\n✨ Real-time pipeline session closed cleanly.")
 
 
