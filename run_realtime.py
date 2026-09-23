@@ -251,6 +251,8 @@ def run_live_eve_streamer(
     current_loop = 0
     flow_seq = int(time.time()) % 1_000_000
 
+    killchain_host = "192.168.50.100"
+
     while not stop_event.is_set():
         current_loop += 1
         if loops > 0 and current_loop > loops:
@@ -293,13 +295,17 @@ def run_live_eve_streamer(
                     evt["flow"]["start"] = now_iso
                     evt["flow"]["end"] = now_iso
 
-                # Ensure critical threat features are present for detector triggers
+                # Multi-stage kill chain and attack vector attribution
                 if tc == "ja3_malware":
+                    evt["src_ip"] = killchain_host
+                    evt["dest_ip"] = "203.0.113.88"
                     evt["tls"] = {"ja3": {"hash": "e7d705a3286e19ea42f587b344ee6865"}}
                     evt["ja3"] = "e7d705a3286e19ea42f587b344ee6865"
                     evt["ja3_hash"] = "e7d705a3286e19ea42f587b344ee6865"
                     evt["app_proto"] = "tls"
                 elif tc == "exfil":
+                    evt["src_ip"] = killchain_host
+                    evt["dest_ip"] = "198.51.100.42"
                     if "flow" not in evt or not isinstance(evt["flow"], dict):
                         evt["flow"] = {}
                     evt["flow"]["bytes_toserver"] = 5_000_000
@@ -310,14 +316,25 @@ def run_live_eve_streamer(
                     evt["resp_bytes"] = 200
                 elif tc == "portscan":
                     evt["dest_port"] = 1000 + (i * 11)
-                    evt["src_ip"] = "192.168.50.15"
+                    evt["dest_ip"] = "192.168.50.20"
+                    evt["src_ip"] = killchain_host
+                    lines_to_write.append(json.dumps(evt) + "\n")
+                    # Also write an isolated external probe from 192.168.50.15 (remains MEDIUM 55)
+                    if i < 20:
+                        isolated = dict(evt)
+                        isolated["src_ip"] = "192.168.50.15"
+                        isolated["flow_id"] = f"scan_isolated_{flow_seq}_{i}"
+                        lines_to_write.append(json.dumps(isolated) + "\n")
+                    continue
                 elif tc == "ddos":
                     evt["dest_ip"] = "192.168.50.254"
                     evt["src_ip"] = f"10.0.{i % 250}.{(i * 7) % 250 + 1}"
                 elif tc == "beacon":
-                    evt["src_ip"] = "192.168.50.77"
+                    evt["src_ip"] = killchain_host
                     evt["dest_ip"] = "203.0.113.88"
                 elif tc == "dns_tunnel":
+                    evt["src_ip"] = "192.168.50.77"
+                    evt["dest_ip"] = "8.8.8.8"
                     dga = evt.get("dns", {}).get("queries", [{}])[0].get("rrname") if isinstance(evt.get("dns"), dict) else None
                     if not dga:
                         dga = f"vx{i}k9q2m1z0p8r4w5t6y1a2b3c4d5e6.tunnel.darknet.io"
@@ -331,7 +348,10 @@ def run_live_eve_streamer(
                 with open(eve_json_path, "a", encoding="utf-8") as out:
                     out.writelines(lines_to_write)
                     out.flush()
-                print(f"📡 [Traffic Streamer] Ingested live burst: {tc.upper()} ({len(lines_to_write)} events)")
+                burst_tag = tc.upper()
+                if tc in ("portscan", "beacon", "ja3_malware", "exfil"):
+                    burst_tag += f" [Kill Chain on {killchain_host}]"
+                print(f"📡 [Traffic Streamer] Ingested live burst: {burst_tag} ({len(lines_to_write)} events)")
             except Exception as err:
                 print(f"⚠️  Traffic Streamer error: {err}")
 
@@ -487,8 +507,15 @@ def main():
             try:
                 stale.unlink()
             except OSError:
-                pass
-    eve_json.touch(exist_ok=True)
+                try:
+                    subprocess.run(_priv() + ["rm", "-f", str(stale)], capture_output=True)
+                except Exception:
+                    pass
+    try:
+        eve_json.touch(exist_ok=True)
+    except OSError:
+        subprocess.run(_priv() + ["touch", str(eve_json)], capture_output=True)
+        subprocess.run(_priv() + ["chmod", "666", str(eve_json)], capture_output=True)
 
     # Clear previous Redis streaming events & sliding window state
     try:
@@ -578,7 +605,7 @@ def main():
                     pcaps = [Path(args.pcap)]
                 else:
                     pcap_dir = ROOT / "data" / "synthetic"
-                    threat_names = ["portscan", "ddos", "beacon", "dns_tunnel", "ja3_malware", "exfil"]
+                    threat_names = ["killchain", "portscan", "ddos", "beacon", "dns_tunnel", "ja3_malware", "exfil"]
                     pcaps = [pcap_dir / f"{t}.pcap" for t in threat_names if (pcap_dir / f"{t}.pcap").exists()]
 
                 t_thread = threading.Thread(

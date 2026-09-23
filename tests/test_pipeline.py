@@ -271,6 +271,51 @@ def test_ddos_incident_correlation_groups_by_victim_destination(cfg, r, keys):
     assert inc3["incident_id"] != inc1["incident_id"]
 
 
+def test_multistage_killchain_simulation_correlates_to_critical(cfg, r, keys):
+    corr = pc.IncidentCorrelator(cfg, r, keys)
+    host = "192.168.50.100"
+
+    # Stage 1: Reconnaissance (Port Scan) -> risk 55 (MEDIUM)
+    a1 = alert_dict(cls="RECON_PORT_SCAN", risk=55, et=1000.0, src=host)
+    inc1 = corr.attach(a1)
+    assert inc1["risk_score"] == 55
+    assert inc1["severity"] == "MEDIUM"
+    assert inc1["alert_count"] == 1
+    assert inc1["threat_classes"] == ["RECON_PORT_SCAN"]
+
+    # Stage 2: C2 Beaconing -> risk 77 (HIGH) compounds into 90 (CRITICAL)
+    a2 = alert_dict(cls="C2_BEACONING", risk=77, et=1030.0, src=host)
+    inc2 = corr.attach(a2)
+    assert inc2["incident_id"] == inc1["incident_id"]
+    assert inc2["risk_score"] == 90
+    assert inc2["severity"] == "CRITICAL"
+    assert inc2["alert_count"] == 2
+    assert inc2["threat_classes"] == ["RECON_PORT_SCAN", "C2_BEACONING"]
+
+    # Stage 3: Data Exfiltration -> risk 82 (CRITICAL) compounds into 98 (CRITICAL)
+    a3 = alert_dict(cls="DATA_EXFILTRATION", risk=82, et=1060.0, src=host)
+    inc3 = corr.attach(a3)
+    assert inc3["incident_id"] == inc1["incident_id"]
+    assert inc3["risk_score"] == 98
+    assert inc3["severity"] == "CRITICAL"
+    assert inc3["alert_count"] == 3
+    assert inc3["threat_classes"] == ["RECON_PORT_SCAN", "C2_BEACONING", "DATA_EXFILTRATION"]
+
+    # Repeat alert within same class (e.g., further C2 beacon) does NOT inflate the 98 ceiling
+    a4 = alert_dict(cls="C2_BEACONING", risk=75, et=1090.0, src=host)
+    inc4 = corr.attach(a4)
+    assert inc4["incident_id"] == inc1["incident_id"]
+    assert inc4["risk_score"] == 98
+    assert inc4["alert_count"] == 4
+
+    # Standalone probe from another host does NOT get merged into the kill chain incident
+    unrelated = alert_dict(cls="RECON_PORT_SCAN", risk=55, et=1095.0, src="192.168.50.15")
+    inc_unrelated = corr.attach(unrelated)
+    assert inc_unrelated["incident_id"] != inc1["incident_id"]
+    assert inc_unrelated["risk_score"] == 55
+    assert inc_unrelated["severity"] == "MEDIUM"
+
+
 # ---------------------------------------------------------------------------
 # Worker end to end (fakeredis)
 # ---------------------------------------------------------------------------

@@ -278,6 +278,81 @@ def gen_exfil(target="203.0.113.99", total_bytes=2_000_000, chunk_size=1400):
     return packets
 
 
+def gen_killchain(victim="192.168.50.100", c2="203.0.113.88", exfil_target="198.51.100.42"):
+    """Multi-stage kill chain simulated against a single host entity:
+    Phase 1: Internal network reconnaissance / port scanning
+    Phase 2: C2 Beaconing and suspicious JA3 TLS handshakes
+    Phase 3: High-volume data exfiltration
+    """
+    packets = []
+    t = time.time()
+
+    # Stage 1: Port scan (Reconnaissance)
+    internal_target = "192.168.50.20"
+    ports = random.sample(range(1, 10000), 40)
+    for p in ports:
+        sport = random.randint(40000, 60000)
+        pkt = _frame(SRC_MAC, DST_MAC, IP(src=victim, dst=internal_target),
+                     TCP(sport=sport, dport=p, flags="S", seq=1000))
+        pkt.time = t
+        packets.append(pkt)
+        t += 0.01
+
+    t += 1.0  # Interval between attack phases
+
+    # Stage 2: C2 Beaconing & JA3 malware communication
+    for i in range(10):
+        sport = random.randint(40000, 60000)
+        syn = _frame(SRC_MAC, DST_MAC, IP(src=victim, dst=c2),
+                     TCP(sport=sport, dport=443, flags="S", seq=1000))
+        syn.time = t
+        packets.append(syn)
+        t += 0.01
+        synack = _frame(DST_MAC, SRC_MAC, IP(src=c2, dst=victim),
+                         TCP(sport=443, dport=sport, flags="SA", seq=5000, ack=1001))
+        synack.time = t
+        packets.append(synack)
+        t += 0.01
+        client_hello = _build_client_hello(sni=f"c2-node-{i}.telemetry-c2.net")
+        hello_pkt = _frame(SRC_MAC, DST_MAC, IP(src=victim, dst=c2),
+                            TCP(sport=sport, dport=443, flags="PA", seq=1001, ack=5001) / Raw(load=client_hello))
+        hello_pkt.time = t
+        packets.append(hello_pkt)
+        t += 0.5
+
+    t += 1.0  # Pause before data exfiltration
+
+    # Stage 3: Data Exfiltration (Outbound heavy data payload)
+    total_bytes = 1_500_000
+    chunk_size = 1400
+    sport = random.randint(40000, 60000)
+    seq = 1000
+    syn = _frame(SRC_MAC, DST_MAC, IP(src=victim, dst=exfil_target),
+                 TCP(sport=sport, dport=443, flags="S", seq=seq))
+    syn.time = t; packets.append(syn); t += 0.01
+    synack = _frame(DST_MAC, SRC_MAC, IP(src=exfil_target, dst=victim),
+                     TCP(sport=443, dport=sport, flags="SA", seq=5000, ack=seq + 1))
+    synack.time = t; packets.append(synack); t += 0.01
+    seq += 1
+
+    sent = 0
+    payload = b"X" * chunk_size
+    while sent < total_bytes:
+        pkt = _frame(SRC_MAC, DST_MAC, IP(src=victim, dst=exfil_target),
+                     TCP(sport=sport, dport=443, flags="PA", seq=seq, ack=5001) / Raw(load=payload))
+        pkt.time = t
+        packets.append(pkt)
+        seq += chunk_size
+        sent += chunk_size
+        t += 0.005
+
+    finalack = _frame(DST_MAC, SRC_MAC, IP(src=exfil_target, dst=victim),
+                       TCP(sport=443, dport=sport, flags="A", seq=5001, ack=seq))
+    finalack.time = t
+    packets.append(finalack)
+    return packets
+
+
 GENERATORS = {
     "benign": gen_benign,
     "ddos": gen_ddos,
@@ -286,6 +361,7 @@ GENERATORS = {
     "ja3_malware": gen_ja3_malware,
     "portscan": gen_portscan,
     "exfil": gen_exfil,
+    "killchain": gen_killchain,
 }
 
 
