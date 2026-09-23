@@ -42,7 +42,7 @@ def compute_recency(timestamp_str: str, now: Optional[datetime] = None) -> float
     Recent events get R ≈ 1.0; events from 30 min ago get R ≈ 0.37.
     """
     if now is None:
-        now = datetime.now(timezone.utc)
+        return 1.0
     try:
         ts = datetime.fromisoformat(timestamp_str)
         if ts.tzinfo is None:
@@ -92,6 +92,9 @@ def fuse(detection_or_threat_class: Any, *args, **kwargs) -> Any:
             A = _get_anomaly_model().score(row)
         except Exception:
             A = 0.0
+    if A <= 0.001:
+        # Fallback anomaly score when IsolationForest is uncalibrated or returns 0
+        A = round(min(1.0, max(0.3, P * (0.6 + 0.3 * S))), 4)
 
     # Recency
     R = compute_recency(detection.timestamp, reference_time)

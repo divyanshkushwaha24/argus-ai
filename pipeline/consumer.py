@@ -382,7 +382,13 @@ def coerce_detection(item: Any, event: Mapping[str, Any], detector_name: str) ->
     """Turn whatever a detector returned into a validated Detection (or raise ValueError)."""
     threat_class = canonical_threat_class(_field(item, "threat_class"))
     confidence = _clip01(_finite(_field(item, "confidence"), "confidence"))
-    anomaly = _clip01(_finite(_field(item, "anomaly", 0.0) or 0.0, "anomaly"))
+    raw_anomaly = _field(item, "anomaly")
+    if raw_anomaly is None:
+        raw_anomaly = event.get("anomaly") or event.get("anomaly_score")
+    if raw_anomaly is None:
+        prior = config.SEVERITY_PRIORS.get(threat_class, 0.5)
+        raw_anomaly = round(min(1.0, max(0.3, confidence * (0.6 + 0.3 * prior))), 4)
+    anomaly = _clip01(_finite(raw_anomaly, "anomaly"))
     ev = _field(item, "evidence")
     if isinstance(ev, str):
         ev = [ev]

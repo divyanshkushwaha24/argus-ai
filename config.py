@@ -92,11 +92,11 @@ SEVERITY_PRIORS = {
     "DATA_EXFILTRATION": 0.90,
 }
 
-# Risk level thresholds
+# Risk level thresholds (aligned with pipeline/consumer.py severity_for)
 RISK_LEVELS = [
-    (90, "CRITICAL"),
-    (70, "HIGH"),
-    (40, "MEDIUM"),
+    (81, "CRITICAL"),
+    (61, "HIGH"),
+    (31, "MEDIUM"),
     (0,  "LOW"),
 ]
 
