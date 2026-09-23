@@ -1,13 +1,14 @@
 """
-Argus AI — Real-Time Threat Intelligence & SOC Dashboard.
+Argus AI - Threat Intelligence Dashboard.
 
-A high-fidelity cybersecurity operations center dashboard featuring:
-- Full-bleed dark cyber-defense aesthetic (deep obsidian, neon cyans, cyber crimson, glowing accents)
-- Seamless top navigation (🔴 Live Telemetry, 📜 Historical Audit Logs, 🛡️ Threat Matrix & Playbooks)
-- Zero-clutter header control deck (live auto-refresh toggle, session snapshot, real-time pulse beacon)
-- Dual-mode operation: real-time streaming telemetry and comprehensive historical session inspection
-- Direct access to PostgreSQL/SQLite `history_logs` table, JSON/CSV exports, and forensics
+A minimal, professional telemetry dashboard:
+- Crisp technical layout with clean typography (Inter and JetBrains Mono)
+- Multi-view navigation: Live Telemetry, Session History, Detection Signatures
+- Real-time auto-refresh and session archival controls
+- Data persistence via PostgreSQL/SQLite history_logs and raw alerts tables
 """
+
+from __future__ import annotations
 
 import json
 import os
@@ -36,27 +37,26 @@ from db import (
 
 # ── Page config ──────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Argus AI // Cyber Defense SOC",
-    page_icon="🛡️",
+    page_title="Argus - Threat Telemetry",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-# ── Custom CSS for High-Tech Cyber SOC Theme ─────────────────────────
+# ── Custom Minimalist CSS ────────────────────────────────────────────
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-    /* 1. HIDE DULL SIDEBAR COMPLETELY */
+    /* Hide sidebar completely */
     [data-testid="stSidebar"], section[data-testid="stSidebar"], div[data-testid="stSidebarCollapsedControl"] {
         display: none !important;
     }
 
-    /* 2. Global Cyber Dark Theme */
+    /* Global theme */
     .stApp {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        background: radial-gradient(circle at 50% 0%, #0d1527 0%, #070a13 70%, #05070c 100%) !important;
-        color: #e2e8f0 !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        background-color: #f8fafc !important;
+        color: #0f172a !important;
     }
 
     header[data-testid="stHeader"] {
@@ -64,250 +64,209 @@ st.markdown("""
     }
 
     .block-container {
-        padding-top: 1.2rem !important;
+        padding-top: 1.5rem !important;
         padding-bottom: 2rem !important;
         max-width: 96% !important;
     }
 
-    h1, h2, h3, h4, .main-header h1, .section-header {
-        font-family: 'Space Grotesk', sans-serif !important;
-        letter-spacing: -0.02em;
-        color: #f8fafc !important;
+    h1, h2, h3, h4 {
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.02em !important;
+        color: #0f172a !important;
     }
 
     p, span, label, .stMarkdown p {
-        color: #94a3b8;
+        color: #475569;
     }
 
     code, pre, .mono-text {
         font-family: 'JetBrains Mono', monospace !important;
     }
 
-    /* 3. Top Cyber Navbar & Control Deck */
-    .soc-nav-card {
-        background: rgba(15, 23, 42, 0.75);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
-        padding: 12px 20px;
-        margin-bottom: 18px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    /* Top Navigation Deck */
+    .top-deck {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        padding: 16px 20px;
+        margin-bottom: 16px;
         display: flex;
         align-items: center;
         justify-content: space-between;
     }
 
-    .soc-brand {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .soc-logo-icon {
-        font-size: 1.8rem;
-        filter: drop-shadow(0 0 10px rgba(0, 242, 254, 0.6));
-    }
-
-    .soc-title {
-        font-family: 'Space Grotesk', sans-serif;
+    .brand-title {
+        font-size: 1.15rem;
         font-weight: 700;
-        font-size: 1.35rem;
-        letter-spacing: -0.02em;
-        background: linear-gradient(135deg, #ffffff 30%, #38bdf8 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        letter-spacing: -0.01em;
+        color: #0f172a;
         margin: 0;
-        line-height: 1.1;
+        line-height: 1.2;
     }
 
-    .soc-subtitle {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.7rem;
-        color: #00f2fe;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
+    .brand-subtitle {
+        font-size: 0.78rem;
+        color: #64748b;
         margin-top: 2px;
+        font-family: 'JetBrains Mono', monospace;
     }
 
-    .status-beacon {
+    .status-badge {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        padding: 4px 12px;
-        border-radius: 9999px;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 4px;
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.72rem;
-        font-weight: 600;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        color: #334155;
     }
 
-    .beacon-live {
-        background: rgba(16, 185, 129, 0.12);
-        color: #34d399;
-        border: 1px solid rgba(52, 211, 153, 0.3);
-        box-shadow: 0 0 12px rgba(52, 211, 153, 0.2);
+    .status-indicator-live {
+        width: 6px;
+        height: 6px;
+        border-radius: 1px;
+        background-color: #16a34a;
     }
 
-    .beacon-paused {
-        background: rgba(245, 158, 11, 0.12);
-        color: #fbbf24;
-        border: 1px solid rgba(251, 191, 36, 0.3);
+    .status-indicator-paused {
+        width: 6px;
+        height: 6px;
+        border-radius: 1px;
+        background-color: #94a3b8;
     }
 
-    .pulse-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background-color: #10b981;
-        box-shadow: 0 0 8px #10b981;
-        animation: pulse 1.5s infinite;
-    }
-
-    @keyframes pulse {
-        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-        70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-    }
-
-    /* 4. Futuristic Glassmorphism KPI Cards */
-    .kpi-deck {
+    /* Minimalist KPI Cards */
+    .kpi-grid {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
-        gap: 14px;
-        margin-bottom: 20px;
+        gap: 12px;
+        margin-bottom: 16px;
     }
 
-    .cyber-card {
-        background: rgba(15, 23, 42, 0.65);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.07);
-        border-radius: 10px;
-        padding: 16px 18px;
+    .kpi-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        padding: 14px 16px;
         position: relative;
-        overflow: hidden;
-        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .cyber-card:hover {
-        transform: translateY(-2px);
-        border-color: rgba(56, 189, 248, 0.3);
-        box-shadow: 0 6px 20px -2px rgba(0, 0, 0, 0.5);
-    }
-
-    .cyber-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 2px;
-    }
-
-    .card-total::before    { background: linear-gradient(90deg, #38bdf8, #00f2fe); }
-    .card-critical::before { background: linear-gradient(90deg, #f43f5e, #ff0055); }
-    .card-high::before     { background: linear-gradient(90deg, #fb923c, #f97316); }
-    .card-medium::before   { background: linear-gradient(90deg, #38bdf8, #0284c7); }
-    .card-sources::before  { background: linear-gradient(90deg, #34d399, #10b981); }
-
-    .kpi-title {
+    .kpi-label {
         font-family: 'JetBrains Mono', monospace;
-        font-size: 0.72rem;
-        font-weight: 600;
-        color: #94a3b8;
+        font-size: 0.68rem;
+        font-weight: 500;
+        color: #64748b;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.06em;
         margin-bottom: 6px;
     }
 
-    .kpi-num {
-        font-family: 'Space Grotesk', sans-serif;
-        font-size: 2.2rem;
-        font-weight: 700;
-        line-height: 1;
+    .kpi-value {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.85rem;
+        font-weight: 600;
+        line-height: 1.1;
         letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
     }
 
-    .num-total    { color: #f8fafc; }
-    .num-critical { color: #ff3366; text-shadow: 0 0 16px rgba(255, 51, 102, 0.4); }
-    .num-high     { color: #fb923c; text-shadow: 0 0 16px rgba(251, 146, 60, 0.3); }
-    .num-medium   { color: #38bdf8; text-shadow: 0 0 16px rgba(56, 189, 248, 0.3); }
-    .num-sources  { color: #34d399; text-shadow: 0 0 16px rgba(52, 211, 153, 0.3); }
+    .val-total    { color: #0f172a; }
+    .val-critical { color: #dc2626; }
+    .val-high     { color: #ea580c; }
+    .val-medium   { color: #0284c7; }
+    .val-sources  { color: #16a34a; }
 
-    /* 5. Section Headers */
-    .section-header {
-        font-family: 'Space Grotesk', sans-serif;
-        font-size: 0.95rem;
+    /* Section Headings */
+    .section-title {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.8rem;
         font-weight: 600;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
-        color: #f1f5f9;
-        margin-top: 14px;
-        margin-bottom: 12px;
+        color: #334155;
+        margin: 16px 0 10px 0;
         display: flex;
         align-items: center;
         gap: 8px;
     }
 
-    .section-tag {
+    .section-num {
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.68rem;
-        font-weight: 700;
-        color: #00f2fe;
-        background: rgba(0, 242, 254, 0.1);
-        padding: 3px 8px;
-        border-radius: 4px;
-        border: 1px solid rgba(0, 242, 254, 0.25);
+        color: #64748b;
+        background: #f1f5f9;
+        padding: 2px 6px;
+        border-radius: 3px;
+        border: 1px solid #e2e8f0;
     }
 
-    /* 6. Threat Playbook Card */
-    .playbook-card {
-        background: rgba(15, 23, 42, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 10px;
+    /* Playbook Card */
+    .doc-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
         padding: 16px;
         margin-bottom: 12px;
     }
 
-    /* Streamlit widget overrides for high-contrast dark theme */
-    div[data-testid="stDataFrame"] {
-        border-radius: 8px;
-        overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+    /* Strict button override: square/minimal radius */
+    .stButton>button, div[data-testid="stBaseButton-primary"] button, div[data-testid="stBaseButton-secondary"] button {
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 500 !important;
+        font-size: 0.82rem !important;
+        letter-spacing: 0.02em !important;
+        border-radius: 4px !important;
+        padding: 0.35rem 0.85rem !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: none !important;
     }
 
-    .stButton>button {
+    /* Table styling */
+    div[data-testid="stDataFrame"] {
+        border-radius: 4px !important;
+        border: 1px solid #e2e8f0 !important;
+        background: #ffffff !important;
+    }
+
+    /* Footer bar */
+    .footer-bar {
+        margin-top: 36px;
+        padding: 14px;
+        border-top: 1px solid #e2e8f0;
+        text-align: center;
         font-family: 'JetBrains Mono', monospace;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-        border-radius: 8px;
-        transition: all 0.2s ease;
+        font-size: 0.72rem;
+        color: #64748b;
     }
 </style>
 """, unsafe_allow_html=True)
 
 
-# ── Threat Palette & Helper Functions ────────────────────────────────
+# ── Threat Colors & Helpers ──────────────────────────────────────────
 THREAT_COLORS = {
-    "ddos": "#ff3366",
-    "DDOS": "#ff3366",
-    "beacon": "#f59e0b",
-    "c2_beaconing": "#f59e0b",
-    "C2_BEACONING": "#f59e0b",
-    "dns_tunnel": "#a855f7",
-    "dga_dns_tunneling": "#a855f7",
-    "DGA_DNS_TUNNELING": "#a855f7",
-    "ja3_malware": "#f97316",
-    "encrypted_malware": "#f97316",
-    "ENCRYPTED_MALWARE": "#f97316",
-    "portscan": "#00f2fe",
-    "recon_port_scan": "#00f2fe",
-    "RECON_PORT_SCAN": "#00f2fe",
-    "exfil": "#10b981",
-    "data_exfiltration": "#10b981",
-    "DATA_EXFILTRATION": "#10b981",
+    "ddos": "#dc2626",
+    "DDOS": "#dc2626",
+    "beacon": "#d97706",
+    "c2_beaconing": "#d97706",
+    "C2_BEACONING": "#d97706",
+    "dns_tunnel": "#475569",
+    "dga_dns_tunneling": "#475569",
+    "DGA_DNS_TUNNELING": "#475569",
+    "ja3_malware": "#ea580c",
+    "encrypted_malware": "#ea580c",
+    "ENCRYPTED_MALWARE": "#ea580c",
+    "portscan": "#0284c7",
+    "recon_port_scan": "#0284c7",
+    "RECON_PORT_SCAN": "#0284c7",
+    "exfil": "#16a34a",
+    "data_exfiltration": "#16a34a",
+    "DATA_EXFILTRATION": "#16a34a",
 }
 
 
@@ -331,57 +290,57 @@ def format_evidence(evidence_str) -> str:
 
 
 def render_kpi_cards(stats: dict):
-    """Render top 5 high-impact cybersecurity KPI cards."""
+    """Render top 5 metrics in minimal cards."""
     by_level = stats.get("by_risk_level", {})
     col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
         st.markdown(f"""
-        <div class="cyber-card card-total">
-            <div class="kpi-title">TOTAL THREATS</div>
-            <div class="kpi-num num-total">{stats.get('total_alerts', 0)}</div>
+        <div class="kpi-card" style="border-top: 2px solid #0f172a;">
+            <div class="kpi-label">Total Events</div>
+            <div class="kpi-value val-total">{stats.get('total_alerts', 0)}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col2:
         st.markdown(f"""
-        <div class="cyber-card card-critical">
-            <div class="kpi-title">CRITICAL SEVERITY</div>
-            <div class="kpi-num num-critical">{by_level.get('CRITICAL', 0)}</div>
+        <div class="kpi-card" style="border-top: 2px solid #dc2626;">
+            <div class="kpi-label">Critical</div>
+            <div class="kpi-value val-critical">{by_level.get('CRITICAL', 0)}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col3:
         st.markdown(f"""
-        <div class="cyber-card card-high">
-            <div class="kpi-title">HIGH RISK</div>
-            <div class="kpi-num num-high">{by_level.get('HIGH', 0)}</div>
+        <div class="kpi-card" style="border-top: 2px solid #ea580c;">
+            <div class="kpi-label">High Risk</div>
+            <div class="kpi-value val-high">{by_level.get('HIGH', 0)}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col4:
         st.markdown(f"""
-        <div class="cyber-card card-medium">
-            <div class="kpi-title">MEDIUM RISK</div>
-            <div class="kpi-num num-medium">{by_level.get('MEDIUM', 0)}</div>
+        <div class="kpi-card" style="border-top: 2px solid #0284c7;">
+            <div class="kpi-label">Medium Risk</div>
+            <div class="kpi-value val-medium">{by_level.get('MEDIUM', 0)}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col5:
         st.markdown(f"""
-        <div class="cyber-card card-sources">
-            <div class="kpi-title">UNIQUE ATTACKERS</div>
-            <div class="kpi-num num-sources">{stats.get('unique_source_ips', 0)}</div>
+        <div class="kpi-card" style="border-top: 2px solid #16a34a;">
+            <div class="kpi-label">Unique Sources</div>
+            <div class="kpi-value val-sources">{stats.get('unique_source_ips', 0)}</div>
         </div>
         """, unsafe_allow_html=True)
 
 
 def render_charts(df: pd.DataFrame, key_prefix: str = "live"):
-    """Render threat distribution donut chart and risk score histogram with cyber dark theme."""
+    """Render threat distribution and risk score histogram with clean light styling."""
     col_left, col_right = st.columns(2)
 
     with col_left:
-        st.markdown('<div class="section-header"><span class="section-tag">01 // TELEMETRY</span> Threat Vector Distribution</div>',
+        st.markdown('<div class="section-title"><span class="section-num">01</span> Threat Distribution</div>',
                     unsafe_allow_html=True)
         if "threat_class" in df.columns and not df.empty:
             threat_counts = df["threat_class"].value_counts()
@@ -393,52 +352,54 @@ def render_charts(df: pd.DataFrame, key_prefix: str = "live"):
                 hole=0.6,
             )
             fig.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font_color="#cbd5e1",
-                font_family="JetBrains Mono, monospace",
-                margin=dict(t=10, b=10, l=10, r=10),
-                height=290,
+                paper_bgcolor="#ffffff",
+                plot_bgcolor="#ffffff",
+                font_color="#334155",
+                font_family="Inter, -apple-system, sans-serif",
+                margin=dict(t=15, b=15, l=15, r=15),
+                height=280,
                 legend=dict(
                     orientation="h",
                     y=-0.15,
-                    font=dict(size=11, family="JetBrains Mono, monospace", color="#cbd5e1"),
+                    font=dict(size=11, family="Inter, sans-serif", color="#475569"),
                 ),
             )
             fig.update_traces(
                 textposition='inside',
                 textinfo='label+percent',
-                insidetextfont=dict(family="JetBrains Mono, monospace", size=11, color="#ffffff"),
-                marker=dict(line=dict(color='#0b0f19', width=2)),
+                insidetextfont=dict(family="JetBrains Mono, monospace", size=10, color="#ffffff"),
+                marker=dict(line=dict(color='#ffffff', width=1.5)),
             )
             st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_pie")
 
     with col_right:
-        st.markdown('<div class="section-header"><span class="section-tag">02 // SPECTRUM</span> Threat Severity Spectrum</div>',
+        st.markdown('<div class="section-title"><span class="section-num">02</span> Risk Score Histogram</div>',
                     unsafe_allow_html=True)
         if "risk_score" in df.columns and not df.empty:
             fig = px.histogram(
                 df, x="risk_score",
                 nbins=20,
-                color_discrete_sequence=["#ff0055"],
-                labels={"risk_score": "CALIBRATED RISK SCORE", "count": "THREAT FREQUENCY"},
+                color_discrete_sequence=["#0f172a"],
+                labels={"risk_score": "Risk Score", "count": "Count"},
             )
             fig.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font_color="#cbd5e1",
-                font_family="JetBrains Mono, monospace",
-                margin=dict(t=10, b=30, l=40, r=10),
-                height=290,
+                paper_bgcolor="#ffffff",
+                plot_bgcolor="#ffffff",
+                font_color="#334155",
+                font_family="Inter, -apple-system, sans-serif",
+                margin=dict(t=15, b=30, l=40, r=15),
+                height=280,
                 xaxis=dict(
-                    gridcolor="rgba(255, 255, 255, 0.06)",
-                    tickfont=dict(family="JetBrains Mono, monospace", size=10, color="#94a3b8"),
-                    title_font=dict(family="JetBrains Mono, monospace", size=10, color="#cbd5e1"),
+                    gridcolor="#f1f5f9",
+                    linecolor="#e2e8f0",
+                    tickfont=dict(family="JetBrains Mono, monospace", size=10, color="#64748b"),
+                    title_font=dict(family="Inter, sans-serif", size=11, color="#334155"),
                 ),
                 yaxis=dict(
-                    gridcolor="rgba(255, 255, 255, 0.06)",
-                    tickfont=dict(family="JetBrains Mono, monospace", size=10, color="#94a3b8"),
-                    title_font=dict(family="JetBrains Mono, monospace", size=10, color="#cbd5e1"),
+                    gridcolor="#f1f5f9",
+                    linecolor="#e2e8f0",
+                    tickfont=dict(family="JetBrains Mono, monospace", size=10, color="#64748b"),
+                    title_font=dict(family="Inter, sans-serif", size=11, color="#334155"),
                 ),
                 bargap=0.15,
             )
@@ -446,8 +407,8 @@ def render_charts(df: pd.DataFrame, key_prefix: str = "live"):
 
 
 def render_alerts_table(df: pd.DataFrame, key_prefix: str = "live"):
-    """Render filterable and styled cyber alert stream."""
-    st.markdown('<div class="section-header"><span class="section-tag">03 // STREAM</span> Live Threat Telemetry Feed</div>',
+    """Render filterable alert event feed."""
+    st.markdown('<div class="section-title"><span class="section-num">03</span> Event Feed</div>',
                 unsafe_allow_html=True)
 
     filter_c1, filter_c2, filter_c3 = st.columns([1.5, 1.5, 2])
@@ -455,10 +416,10 @@ def render_alerts_table(df: pd.DataFrame, key_prefix: str = "live"):
     with filter_c1:
         all_threats = sorted(df["threat_class"].dropna().unique().tolist()) if "threat_class" in df.columns else []
         selected_threats = st.multiselect(
-            "Threat Vector Filter",
+            "Threat Vector",
             options=all_threats,
             default=[],
-            placeholder="All Vectors (DDoS, Beacon, Scan, etc.)",
+            placeholder="All Vectors",
             key=f"{key_prefix}_filter_threat",
         )
 
@@ -466,17 +427,17 @@ def render_alerts_table(df: pd.DataFrame, key_prefix: str = "live"):
         all_levels = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
         available_levels = [lvl for lvl in all_levels if "risk_level" in df.columns and lvl in df["risk_level"].values]
         selected_levels = st.multiselect(
-            "Severity Filter",
+            "Severity Level",
             options=available_levels,
             default=[],
-            placeholder="All Severities",
+            placeholder="All Levels",
             key=f"{key_prefix}_filter_level",
         )
 
     with filter_c3:
         search_ip = st.text_input(
-            "IP Address Quick Filter",
-            placeholder="Search attacker or destination IP...",
+            "Search IP",
+            placeholder="Filter source or destination IP...",
             key=f"{key_prefix}_filter_ip",
         )
 
@@ -515,26 +476,26 @@ def render_alerts_table(df: pd.DataFrame, key_prefix: str = "live"):
         def highlight_risk(row):
             level = str(row.get("risk_level", "LOW")).upper()
             colors = {
-                "CRITICAL": "background-color: rgba(239, 68, 68, 0.2); color: #fca5a5; font-weight: 600;",
-                "HIGH":     "background-color: rgba(249, 115, 22, 0.2); color: #fdba74; font-weight: 600;",
-                "MEDIUM":   "background-color: rgba(14, 165, 233, 0.2); color: #7dd3fc; font-weight: 600;",
-                "LOW":      "background-color: rgba(16, 185, 129, 0.2); color: #86efac; font-weight: 600;",
+                "CRITICAL": "background-color: #fee2e2; color: #991b1b; font-weight: 500;",
+                "HIGH":     "background-color: #ffedd5; color: #9a3412; font-weight: 500;",
+                "MEDIUM":   "background-color: #e0f2fe; color: #075985; font-weight: 500;",
+                "LOW":      "background-color: #f0fdf4; color: #166534; font-weight: 500;",
             }
             return [colors.get(level, "")] * len(row)
 
         styled = display_df.style.apply(highlight_risk, axis=1)
         st.dataframe(styled, use_container_width=True, height=380)
-        st.caption(f"Displaying {len(filtered)} of {len(df)} ingested threat signals")
+        st.caption(f"Showing {len(filtered)} of {len(df)} recorded events")
     else:
-        st.info("No threat alerts match your current filter criteria.")
+        st.info("No events match the selected filters.")
 
 
 def render_incidents_cluster(df: pd.DataFrame):
-    """Render correlated multi-stage incident clusters."""
+    """Render correlated incident groups."""
     if "incident_id" in df.columns and df["incident_id"].notna().any():
         valid_inc = df[df["incident_id"].notna() & (df["incident_id"] != "") & (df["incident_id"] != "None")]
         if not valid_inc.empty:
-            st.markdown('<div class="section-header"><span class="section-tag">04 // ATTACK GRAPHS</span> Correlated Incident Campaigns</div>',
+            st.markdown('<div class="section-title"><span class="section-num">04</span> Correlated Incidents</div>',
                         unsafe_allow_html=True)
 
             incidents = valid_inc.groupby("incident_id").agg({
@@ -547,8 +508,8 @@ def render_incidents_cluster(df: pd.DataFrame):
             }).reset_index()
 
             incidents.columns = [
-                "Incident ID", "Attacker IP", "Alert Volume", "Peak Risk",
-                "Severity", "Associated Threats", "First Active", "Last Active",
+                "Incident ID", "Source IP", "Events", "Peak Risk",
+                "Severity", "Associated Vectors", "First Seen", "Last Seen",
             ]
             incidents = incidents.sort_values("Peak Risk", ascending=False)
             incidents["Incident ID"] = incidents["Incident ID"].apply(
@@ -557,7 +518,7 @@ def render_incidents_cluster(df: pd.DataFrame):
             st.dataframe(incidents, use_container_width=True, height=220)
 
 
-# ── Main Dashboard Application ───────────────────────────────────────
+# ── Main Application ─────────────────────────────────────────────────
 def main():
     now_str = datetime.now().strftime("%H:%M:%S")
 
@@ -570,104 +531,100 @@ def main():
     if "auto_refresh" not in st.session_state:
         st.session_state["auto_refresh"] = True
 
-    # ── TOP CONTROL DECK & NAVIGATION BAR ─────────────────────────────
+    # ── Top Control Deck ─────────────────────────────────────────────
     st.markdown("""
-    <div class="soc-nav-card">
-        <div class="soc-brand">
-            <span class="soc-logo-icon">🛡️</span>
-            <div>
-                <div class="soc-title">ARGUS AI <span style="font-weight: 300; opacity: 0.8;">// CYBER DEFENSE SOC</span></div>
-                <div class="soc-subtitle">Zero-Intrusion Streaming Detection &bull; Calibrated Bayesian Risk Engine</div>
-            </div>
+    <div class="top-deck">
+        <div>
+            <div class="brand-title">ARGUS <span style="font-weight: 400; color: #64748b;">/ Threat Telemetry</span></div>
+            <div class="brand-subtitle">Network anomaly detection and incident correlation</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Clean Top Action Bar: View Switchers + Controls
-    nav_c1, nav_c2, nav_c3, ctrl_c1, ctrl_c2, ctrl_c3 = st.columns([1.6, 1.8, 1.8, 1.4, 1.8, 1.6])
+    # Action Bar: Views & Controls
+    nav_c1, nav_c2, nav_c3, ctrl_c1, ctrl_c2, ctrl_c3 = st.columns([1.5, 1.6, 1.8, 1.4, 1.8, 1.5])
 
     with nav_c1:
         is_live = st.session_state["active_view"] == "live"
-        if st.button("🔴 LIVE TELEMETRY", key="btn_view_live", use_container_width=True, type="primary" if is_live else "secondary"):
+        if st.button("Live Telemetry", key="btn_view_live", use_container_width=True, type="primary" if is_live else "secondary"):
             st.session_state["active_view"] = "live"
             st.rerun()
 
     with nav_c2:
         is_hist = st.session_state["active_view"] == "history"
-        if st.button("📜 HISTORY LOGS", key="btn_view_history", use_container_width=True, type="primary" if is_hist else "secondary"):
+        if st.button("Session History", key="btn_view_history", use_container_width=True, type="primary" if is_hist else "secondary"):
             st.session_state["active_view"] = "history"
             st.rerun()
 
     with nav_c3:
         is_intel = st.session_state["active_view"] == "intel"
-        if st.button("🛡️ THREAT MATRIX", key="btn_view_intel", use_container_width=True, type="primary" if is_intel else "secondary"):
+        if st.button("Detection Signatures", key="btn_view_intel", use_container_width=True, type="primary" if is_intel else "secondary"):
             st.session_state["active_view"] = "intel"
             st.rerun()
 
     with ctrl_c1:
         if st.session_state["active_view"] == "live":
-            auto_refresh = st.checkbox("⚡ Auto-Sync (2s)", value=st.session_state["auto_refresh"], key="auto_refresh_toggle")
+            auto_refresh = st.checkbox("Auto-refresh (2s)", value=st.session_state["auto_refresh"], key="auto_refresh_toggle")
             st.session_state["auto_refresh"] = auto_refresh
         else:
-            st.markdown('<span style="font-size:0.75rem; color:#64748b; font-family:monospace; line-height:2.4;">⏸️ Auto-Sync Halted</span>', unsafe_allow_html=True)
+            st.markdown('<span style="font-size:0.75rem; color:#64748b; font-family:monospace; line-height:2.4;">Sync paused</span>', unsafe_allow_html=True)
             auto_refresh = False
 
     with ctrl_c2:
-        if st.button("💾 Snapshot Session", use_container_width=True, help="Archive current active alerts to history_logs and reset live counters to 0"):
+        if st.button("Snapshot Session", use_container_width=True, help="Archive active alerts to history_logs and reset live view"):
             archived = archive_and_reset_session(reason="manual_ui_snapshot")
             if archived:
-                st.success(f"Archived {archived['total_alerts']} alerts to {archived['file_name']}!")
+                st.success(f"Archived {archived['total_alerts']} alerts to {archived['file_name']}.")
                 time.sleep(1)
                 st.rerun()
             else:
                 st.info("No active alerts to archive.")
 
     with ctrl_c3:
-        pulse_class = "beacon-live" if (st.session_state["active_view"] == "live" and st.session_state["auto_refresh"]) else "beacon-paused"
-        pulse_icon = '<div class="pulse-dot"></div>' if (st.session_state["active_view"] == "live" and st.session_state["auto_refresh"]) else '<span>⏸️</span>'
-        pulse_text = f"PULSE {now_str}" if (st.session_state["active_view"] == "live" and st.session_state["auto_refresh"]) else "STANDBY"
+        is_active = (st.session_state["active_view"] == "live" and st.session_state["auto_refresh"])
+        indicator_class = "status-indicator-live" if is_active else "status-indicator-paused"
+        status_label = f"SYNCED {now_str} UTC" if is_active else "PAUSED"
         st.markdown(f"""
         <div style="text-align: right; padding-top: 4px;">
-            <span class="status-beacon {pulse_class}">{pulse_icon} {pulse_text}</span>
+            <span class="status-badge"><span class="{indicator_class}"></span> {status_label}</span>
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown("<hr style='border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 12px 0 20px 0;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='border: none; border-top: 1px solid #e2e8f0; margin: 12px 0 16px 0;'>", unsafe_allow_html=True)
 
     # ── VIEW 1: LIVE TELEMETRY STREAM ─────────────────────────────────
     if st.session_state["active_view"] == "live":
         stats = get_alert_stats()
         alerts_raw = get_recent_alerts(limit=500)
 
-        # 5 High-Impact KPI Cards
+        # KPI Metrics Cards
         render_kpi_cards(stats)
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
         if alerts_raw:
             df = pd.DataFrame(alerts_raw)
             render_charts(df, key_prefix="live")
-            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
             render_alerts_table(df, key_prefix="live")
             render_incidents_cluster(df)
         else:
             st.markdown("""
-            <div style="text-align: center; padding: 60px 24px; background: rgba(15, 23, 42, 0.4); border-radius: 12px; border: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 16px;">
-                <span style="font-size: 2.8rem;">📡</span>
-                <h3 style="margin-top: 14px; color: #f8fafc;">Live Sessional Ingestion Ready</h3>
-                <p style="color: #94a3b8; font-size: 0.95rem; max-width: 620px; margin: 8px auto;">
-                    Active threat database is currently clean at 0 alerts. Run <code>python run_realtime.py</code> in your terminal to begin streaming real-time network traffic.
+            <div style="text-align: center; padding: 48px 24px; background: #ffffff; border-radius: 4px; border: 1px dashed #cbd5e1; margin-top: 16px;">
+                <h4 style="margin: 0; color: #0f172a; font-size: 1rem;">No Active Telemetry</h4>
+                <p style="color: #64748b; font-size: 0.85rem; max-width: 520px; margin: 8px auto 0 auto;">
+                    Active threat database contains 0 events. Run <code>python run_realtime.py</code> in your terminal to start streaming network packets.
                 </p>
             </div>
             """, unsafe_allow_html=True)
 
-        # Bottom Status Footer
+        # Status Footer
         st.markdown(f"""
-        <div style="margin-top: 40px; padding: 16px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #64748b;">
-            ARGUS AI // DEFENSE ENCLAVE &bull; PASSIVE INGESTION RUNTIME &bull; LAST PULSE: {now_str} UTC
+        <div class="footer-bar">
+            Argus Detection Engine | Database: Active | Synced: {now_str} UTC
         </div>
         """, unsafe_allow_html=True)
 
-        # Live Auto-Refresh Loop (ONLY runs on Live tab)
+        # Auto-refresh loop
         if st.session_state["auto_refresh"]:
             time.sleep(2.0)
             st.rerun()
@@ -678,17 +635,16 @@ def main():
 
         if not sessions:
             st.markdown("""
-            <div style="text-align: center; padding: 60px 24px; background: rgba(15, 23, 42, 0.4); border-radius: 12px; border: 1px dashed rgba(255, 255, 255, 0.1); margin-top: 16px;">
-                <span style="font-size: 2.8rem;">📭</span>
-                <h3 style="margin-top: 14px; color: #f8fafc;">No Archived Sessions Found</h3>
-                <p style="color: #94a3b8; font-size: 0.95rem; max-width: 620px; margin: 8px auto;">
-                    Sessions are automatically archived into database table <code>history_logs</code> and <code>data/history_logs/</code> whenever you stop or restart <code>run_realtime.py</code> or click <b>"Snapshot Session"</b>.
+            <div style="text-align: center; padding: 48px 24px; background: #ffffff; border-radius: 4px; border: 1px dashed #cbd5e1; margin-top: 16px;">
+                <h4 style="margin: 0; color: #0f172a; font-size: 1rem;">No Archived Sessions Found</h4>
+                <p style="color: #64748b; font-size: 0.85rem; max-width: 520px; margin: 8px auto 0 auto;">
+                    Sessions are recorded into table <code>history_logs</code> and <code>data/history_logs/</code> whenever you restart <code>run_realtime.py</code> or click <b>Snapshot Session</b>.
                 </p>
             </div>
             """, unsafe_allow_html=True)
         else:
             # 1. Database Table Overview: history_logs
-            st.markdown('<div class="section-header"><span class="section-tag">01 // DATABASE TABLE</span> PostgreSQL / SQLite Table `history_logs`</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-title"><span class="section-num">01</span> Session Archive (history_logs)</div>', unsafe_allow_html=True)
 
             summary_rows = []
             for s in sessions:
@@ -717,7 +673,7 @@ def main():
             master_c1, master_c2 = st.columns(2)
             with master_c1:
                 st.download_button(
-                    label="📥 Download Master history_logs.csv",
+                    label="Download history_logs.csv",
                     data=df_summary.to_csv(index=False),
                     file_name="history_logs.csv",
                     mime="text/csv",
@@ -725,17 +681,17 @@ def main():
                 )
             with master_c2:
                 st.download_button(
-                    label="📥 Download Master history_logs.json",
+                    label="Download history_logs.json",
                     data=json.dumps(sessions, indent=2, default=str),
                     file_name="history_logs.json",
                     mime="application/json",
                     use_container_width=True,
                 )
 
-            st.markdown("<hr style='border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 24px 0;'>", unsafe_allow_html=True)
+            st.markdown("<hr style='border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;'>", unsafe_allow_html=True)
 
             # 2. Deep Session Forensic Inspector
-            st.markdown('<div class="section-header"><span class="section-tag">02 // FORENSIC INSPECTOR</span> Deep Session Forensic Breakdown</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-title"><span class="section-num">02</span> Session Details</div>', unsafe_allow_html=True)
 
             session_options = [s["session_id"] for s in sessions]
 
@@ -748,10 +704,10 @@ def main():
                 by_lvl = s.get("by_risk_level", {})
                 crit_high = (by_lvl.get("CRITICAL", 0) if isinstance(by_lvl, dict) else 0) + (by_lvl.get("HIGH", 0) if isinstance(by_lvl, dict) else 0)
                 reason = s.get("reason", "archive")
-                return f"{sid} ({arch_ts} UTC) — {tot} Threats [{crit_high} High/Crit] — [{reason}]"
+                return f"{sid} ({arch_ts} UTC) | {tot} events [{crit_high} High/Crit] | {reason}"
 
             selected_sid = st.selectbox(
-                "Select Archived Session to Inspect:",
+                "Select Archived Session:",
                 options=session_options,
                 format_func=session_format_func,
                 key="historical_session_picker",
@@ -768,11 +724,11 @@ def main():
                     start_str = str(meta.get("start_time", ""))[:19]
                     end_str = str(meta.get("end_time", ""))[:19]
                     st.markdown(f"""
-                    <div style="background: rgba(15, 23, 42, 0.7); padding: 14px 18px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08); font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: #cbd5e1; line-height: 1.6;">
-                        <span style="color:#00f2fe; font-weight:700;">SESSION:</span> {meta.get('session_id')}<br>
-                        <span style="color:#00f2fe; font-weight:700;">ARCHIVED:</span> {str(meta.get('archived_at'))[:19].replace('T', ' ')} UTC<br>
-                        <span style="color:#00f2fe; font-weight:700;">TIMEFRAME:</span> {start_str} ──► {end_str}<br>
-                        <span style="color:#00f2fe; font-weight:700;">REASON:</span> {meta.get('reason')} &bull; <strong>FILE:</strong> data/history_logs/{meta.get('file_name', f'{selected_sid}.json')}
+                    <div style="background: #ffffff; padding: 12px 16px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: #334155; line-height: 1.6;">
+                        <span style="color:#0f172a; font-weight:600;">SESSION:</span> {meta.get('session_id')}<br>
+                        <span style="color:#0f172a; font-weight:600;">ARCHIVED:</span> {str(meta.get('archived_at'))[:19].replace('T', ' ')} UTC<br>
+                        <span style="color:#0f172a; font-weight:600;">WINDOW:</span> {start_str} to {end_str}<br>
+                        <span style="color:#0f172a; font-weight:600;">REASON:</span> {meta.get('reason')} | <strong>FILE:</strong> data/history_logs/{meta.get('file_name', f'{selected_sid}.json')}
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -780,7 +736,7 @@ def main():
 
                 with top_c2:
                     st.download_button(
-                        label="📥 Download Session JSON",
+                        label="Download Session JSON",
                         data=json.dumps(sess_payload, indent=2, default=str),
                         file_name=f"{selected_sid}.json",
                         mime="application/json",
@@ -788,7 +744,7 @@ def main():
                     )
                     if not df_hist.empty:
                         st.download_button(
-                            label="📥 Download Alerts CSV",
+                            label="Download Alerts CSV",
                             data=df_hist.to_csv(index=False),
                             file_name=f"{selected_sid}_alerts.csv",
                             mime="text/csv",
@@ -796,7 +752,7 @@ def main():
                         )
 
                 with top_c3:
-                    with st.expander("🗑️ Delete Session"):
+                    with st.expander("Delete Session"):
                         st.caption("Permanently delete this archived session log?")
                         if st.button("Confirm Delete", type="primary", use_container_width=True, key=f"del_{selected_sid}"):
                             if delete_archived_session(selected_sid):
@@ -804,15 +760,15 @@ def main():
                                 time.sleep(1)
                                 st.rerun()
 
-                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
                 # Render Historical Analytics
                 render_kpi_cards(meta)
-                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
                 if not df_hist.empty:
                     render_charts(df_hist, key_prefix=f"hist_{selected_sid}")
-                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
                     render_alerts_table(df_hist, key_prefix=f"hist_{selected_sid}")
                     render_incidents_cluster(df_hist)
                 else:
@@ -822,63 +778,63 @@ def main():
 
         # Bottom Status Footer
         st.markdown("""
-        <div style="margin-top: 40px; padding: 16px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #64748b;">
-            ARGUS AI // HISTORICAL FORENSIC AUDIT ENGINE &bull; IMMUTABLE LOGS ENCLAVE
+        <div class="footer-bar">
+            Argus Archive Store | Database: Connected
         </div>
         """, unsafe_allow_html=True)
 
     # ── VIEW 3: THREAT MATRIX & PLAYBOOKS ─────────────────────────────
     elif st.session_state["active_view"] == "intel":
-        st.markdown('<div class="section-header"><span class="section-tag">INTEL // PLAYBOOKS</span> Detection Models &amp; Threat Vectors</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title"><span class="section-num">01</span> Detection Signatures &amp; Response Criteria</div>', unsafe_allow_html=True)
 
         vectors = [
             {
                 "title": "DDoS Flood Detection",
                 "tag": "ddos",
-                "color": "#ff3366",
+                "color": "#dc2626",
                 "desc": "Detects high-volume distributed SYN, UDP, and ICMP floods by tracking flow rate z-scores and source-IP Shannon entropy.",
-                "thresholds": "Rate z-score > 3.0 &bull; IP Entropy > 4.5 bits &bull; Sustained packet bursts",
-                "action": "Trigger perimeter rate-limiting and blackhole malicious source subnets via BGP Flowspec."
+                "thresholds": "Rate z-score > 3.0 | IP Entropy > 4.5 bits | Sustained packet bursts",
+                "action": "Trigger ingress rate-limiting and route malicious source subnets via Flowspec."
             },
             {
                 "title": "C2 Periodic Beaconing",
                 "tag": "beacon",
-                "color": "#f59e0b",
-                "desc": "Identifies stealthy Command-and-Control malware agents beaconing out to external command servers at regular intervals with low jitter.",
-                "thresholds": "Inter-arrival Interval CV < 0.20 &bull; Min 5 pulses &bull; Fixed payload sizes",
-                "action": "Isolate host immediately, capture memory dump, and block destination IP/FQDN on firewall."
+                "color": "#d97706",
+                "desc": "Identifies Command-and-Control malware agents beaconing to external endpoints at fixed intervals with low jitter.",
+                "thresholds": "Inter-arrival Interval CV < 0.20 | Min 5 pulses | Fixed payload sizes",
+                "action": "Isolate host, capture volatile memory, and block destination IP/FQDN on perimeter firewall."
             },
             {
                 "title": "DGA & DNS Tunneling",
                 "tag": "dns_tunnel",
-                "color": "#a855f7",
-                "desc": "Flags DNS exfiltration tunnels and Domain Generation Algorithms (DGA) using character n-gram frequencies and Shannon entropy.",
-                "thresholds": "Subdomain Entropy > 3.8 &bull; Length > 28 chars &bull; TXT record anomalies",
-                "action": "Sinkhole malicious domain at recursive DNS resolver and inspect client query logs."
+                "color": "#475569",
+                "desc": "Flags DNS exfiltration tunnels and Domain Generation Algorithms (DGA) using character n-gram frequencies and query entropy.",
+                "thresholds": "Subdomain Entropy > 3.8 | Length > 28 chars | TXT record payload anomalies",
+                "action": "Sinkhole malicious domain at recursive resolver and inspect client query logs."
             },
             {
-                "title": "Encrypted Malware / JA3 Fingerprinting",
+                "title": "Encrypted Malware / JA3 Fingerprint",
                 "tag": "ja3_malware",
-                "color": "#f97316",
-                "desc": "Classifies malicious encrypted TLS sessions via JA3 ClientHello fingerprinting matched against active threat intelligence blocklists and Random Forest TLS models.",
-                "thresholds": "Known Cobalt Strike / Trickbot JA3 hashes &bull; Self-signed TLS cert &bull; Cipher suite anomalies",
-                "action": "Terminate active TLS sessions at gateway and dispatch EDR containment sensor."
+                "color": "#ea580c",
+                "desc": "Classifies malicious TLS sessions via JA3 ClientHello fingerprinting matched against active threat intelligence and Random Forest TLS models.",
+                "thresholds": "Known Cobalt Strike / Trickbot JA3 hashes | Self-signed cert | Cipher suite anomalies",
+                "action": "Terminate active TLS sessions at gateway and dispatch endpoint containment."
             },
             {
                 "title": "Reconnaissance Port Scans",
                 "tag": "portscan",
-                "color": "#00f2fe",
+                "color": "#0284c7",
                 "desc": "Spots horizontal and vertical network reconnaissance scanners probing internal network boundaries.",
-                "thresholds": "Unique Port Fanout > 15 ports in 30s &bull; High SYN-to-ACK ratio",
-                "action": "Quarantine source IP at switch access port and monitor for lateral movement."
+                "thresholds": "Unique Port Fanout > 15 ports in 30s | High SYN-to-ACK ratio",
+                "action": "Quarantine source IP at switch access port and monitor for lateral traversal."
             },
             {
                 "title": "Data Exfiltration Over TLS/HTTP",
                 "tag": "exfil",
-                "color": "#10b981",
+                "color": "#16a34a",
                 "desc": "Uncovers data theft and abnormal egress volumes by calculating outbound/inbound byte ratios and duration anomalies.",
-                "thresholds": "Egress Payload > 5 MB &bull; Out/In Byte Ratio > 10:1 &bull; Off-hours transmission",
-                "action": "Sever external socket connection and notify Data Loss Prevention (DLP) team for forensic audit."
+                "thresholds": "Egress Payload > 5 MB | Out/In Byte Ratio > 10:1 | Off-hours transmission",
+                "action": "Sever external socket connection and notify security team for forensic audit."
             },
         ]
 
@@ -887,17 +843,17 @@ def main():
             target_col = pcol1 if i % 2 == 0 else pcol2
             with target_col:
                 st.markdown(f"""
-                <div class="playbook-card" style="border-left: 4px solid {vec['color']};">
+                <div class="doc-card" style="border-left: 3px solid {vec['color']};">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <h4 style="margin:0; font-size:1.05rem; color:#f8fafc;">{vec['title']}</h4>
-                        <span style="font-family:'JetBrains Mono',monospace; font-size:0.7rem; font-weight:700; color:{vec['color']}; background:rgba(255,255,255,0.06); padding:2px 8px; border-radius:4px;">{vec['tag'].upper()}</span>
+                        <span style="font-weight:600; font-size:0.95rem; color:#0f172a;">{vec['title']}</span>
+                        <span style="font-family:'JetBrains Mono',monospace; font-size:0.68rem; font-weight:600; color:{vec['color']}; background:#f8fafc; border:1px solid #e2e8f0; padding:2px 6px; border-radius:3px;">{vec['tag'].upper()}</span>
                     </div>
-                    <p style="margin:8px 0; font-size:0.85rem; color:#94a3b8; line-height:1.5;">{vec['desc']}</p>
-                    <div style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:#cbd5e1; background:rgba(0,0,0,0.3); padding:8px 10px; border-radius:6px; margin:8px 0;">
-                        <span style="color:{vec['color']};">CRITERIA:</span> {vec['thresholds']}
+                    <p style="margin:8px 0; font-size:0.83rem; color:#475569; line-height:1.5;">{vec['desc']}</p>
+                    <div style="font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:#334155; background:#f8fafc; border:1px solid #e2e8f0; padding:6px 8px; border-radius:3px; margin:8px 0;">
+                        <span style="color:{vec['color']}; font-weight:500;">CRITERIA:</span> {vec['thresholds']}
                     </div>
-                    <div style="font-size:0.8rem; color:#38bdf8;">
-                        <strong>SOC Playbook:</strong> {vec['action']}
+                    <div style="font-size:0.78rem; color:#475569;">
+                        <strong style="color:#0f172a;">Response Procedure:</strong> {vec['action']}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
