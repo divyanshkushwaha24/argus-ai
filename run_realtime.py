@@ -530,14 +530,14 @@ def main():
     except Exception as exc:
         print(f"  ⚠️  Redis reset note: {exc}")
 
-    # Regenerate fresh synthetic flows & PCAP files if requested
+    # Regenerate fresh synthetic PCAP files if requested
     if args.fresh_synthetic:
-        gen_script = ROOT / "ingest" / "generate_fresh_dataset.py"
+        gen_script = ROOT / "ingest" / "generate_synthetic.py"
         if gen_script.exists():
-            print("  🔄 Generating fresh synthetic flows & PCAP telemetry...")
+            print("  🔄 Generating fresh synthetic PCAP telemetry...")
             try:
-                subprocess.run([sys.executable, str(gen_script)], check=False, cwd=str(ROOT), timeout=30)
-                print("  ✓ Fresh synthetic files generated.")
+                subprocess.run([sys.executable, str(gen_script), "all"], check=False, cwd=str(ROOT), timeout=30)
+                print("  ✓ Fresh synthetic PCAPs generated.")
             except Exception as exc:
                 print(f"  ⚠️  Synthetic generator notice: {exc}")
 

@@ -30,7 +30,6 @@ from models.beacon_detector import BeaconDetector
 from models.scan_detector import ScanDetector
 from models.exfil_detector import ExfilDetector
 from models.fusion import fuse
-from models.explain import explain_detection
 from models.correlation import correlate_alerts
 from models.alert_schema import Detection
 
@@ -213,7 +212,6 @@ def evaluate_on_test(df_test: pd.DataFrame) -> dict:
 
             # Run fusion
             alert = fuse(best, row)
-            alert.explanation = explain_detection(alert)
             alerts.append(alert)
 
         y_true.append(true_label)

@@ -32,6 +32,6 @@ ENV PYTHONPATH=/app
 # Default port for Streamlit dashboard
 EXPOSE 8501
 
-# Default entrypoint
-CMD ["python", "pipeline.py"]
+# Default entrypoint (Cherenkov Real-Time Streaming Detection Engine)
+CMD ["python", "-m", "pipeline.consumer", "up", "--auto-start", "--no-network"]
 

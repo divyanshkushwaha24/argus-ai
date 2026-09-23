@@ -1,6 +1,26 @@
-# Real-world datasets -- large, downloaded separately, not committed
-data/raw/
+# Real-world and runtime data
+data/raw/*
+!data/raw/.gitkeep
 data/alerts.db
+data/history/
+data/history_logs/
+data/history_logs.json
+data/replay/*
+!data/replay/.gitkeep
+
+# PCAP captures (generated on-demand via python3 ingest/generate_synthetic.py all)
+*.pcap
+data/synthetic/*.pcap
+!data/synthetic/.gitkeep
+
+# Logs and runtime artifacts
+*.log
+data/sample_logs/*/*/*.log
+
+# Local databases
+*.db
+dashboard/data/
+suricata_rules/
 
 # Python
 __pycache__/
@@ -9,18 +29,10 @@ __pycache__/
 venv/
 .env
 
-# OS noise
+# Editor & OS noise
 .DS_Store
 Thumbs.db
-
-# Editor & Test noise
 tempCodeRunnerFile.py
 *.tempCodeRunnerFile.py
 .pytest_cache/
 .vscode/
-
-# Local databases and rules
-suricata_rules/
-*.db
-dashboard/data/
-
