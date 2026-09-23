@@ -791,7 +791,16 @@ class IncidentCorrelator:
         et = parse_iso(alert["event_time"])
         risk = int(alert["risk_score"])
         cls = alert["threat_class"]
-        open_key = self.keys.incident_open(src)
+
+        is_ddos = False
+        try:
+            is_ddos = (canonical_threat_class(cls) == "DDOS")
+        except Exception:
+            is_ddos = str(cls).strip().lower() in ("ddos", "dos", "volumetric_ddos", "flood")
+
+        # Group incidents by target entity: for DDoS, correlate by destination victim IP
+        entity_ip = (alert.get("dst_ip") or alert.get("dest_ip") or src) if is_ddos else src
+        open_key = self.keys.incident_open(entity_ip)
         for _ in range(12):
             cur_id = self.r.get(open_key)
             inc_key = self.keys.incident(cur_id) if cur_id else None
@@ -817,7 +826,7 @@ class IncidentCorrelator:
                         survive *= 1.0 - _clip01(v / 100.0)
                     combined = min(100, _round_half_up(100.0 * (1.0 - survive)))
                     fields = {
-                        "incident_id": incident_id, "src_ip": src, "first_seen": f"{first_seen:.6f}",
+                        "incident_id": incident_id, "src_ip": entity_ip, "first_seen": f"{first_seen:.6f}",
                         "last_seen": f"{last_seen:.6f}", "alert_count": count,
                         "class_risks": json.dumps(class_risks), "risk_score": combined,
                         "severity": severity_for(combined), "status": "OPEN",
@@ -829,7 +838,7 @@ class IncidentCorrelator:
                     pipe.set(open_key, incident_id, ex=86400)
                     pipe.execute()
                     return {
-                        "incident_id": incident_id, "src_ip": src, "first_seen": utc_iso(first_seen),
+                        "incident_id": incident_id, "src_ip": entity_ip, "first_seen": utc_iso(first_seen),
                         "last_seen": utc_iso(last_seen), "alert_count": count,
                         "threat_classes": list(class_risks), "risk_score": combined,
                         "severity": severity_for(combined), "status": "OPEN",
@@ -893,12 +902,22 @@ class AlertEngine:
     def process(self, det: Detection, ingest_ms: Optional[int]) -> Optional[dict]:
         self.metrics.inc("detections")
         alert_id = make_alert_id(det.flow_id, det.threat_class, det.detector)
-        cd_key = self.keys.cooldown(det.src_ip, det.threat_class)
+
+        # For DDoS, the entity under attack is the destination victim IP (dst_ip),
+        # whereas for single-source attacks (scans, beacons, exfil, malware) it is the source IP.
+        is_ddos = False
+        try:
+            is_ddos = (canonical_threat_class(det.threat_class) == "DDOS")
+        except Exception:
+            is_ddos = str(det.threat_class).strip().lower() in ("ddos", "dos", "volumetric_ddos", "flood")
+
+        cooldown_entity = (det.dst_ip or det.src_ip) if is_ddos else det.src_ip
+        cd_key = self.keys.cooldown(cooldown_entity, det.threat_class)
         holder = self.r.get(cd_key)
         if holder not in (None, alert_id):  # same alert redelivered => proceed (idempotent write)
             self.metrics.inc("alerts_suppressed")
             return None
-        hist_key = self.keys.hist(det.src_ip)
+        hist_key = self.keys.hist(cooldown_entity)
         prior = [
             t for member, t in self.r.zrangebyscore(hist_key, det.event_time - self.cfg.recency_window_s, det.event_time, withscores=True)
             if member != alert_id

@@ -250,6 +250,27 @@ def test_incident_separation_by_source_and_by_gap(cfg, r, keys):
     assert len({a["incident_id"], b["incident_id"], c["incident_id"]}) == 3
 
 
+def test_ddos_incident_correlation_groups_by_victim_destination(cfg, r, keys):
+    corr = pc.IncidentCorrelator(cfg, r, keys)
+    # Two DDoS alerts from different spoofed sources attacking the same victim destination
+    a1 = alert_dict(cls="DDOS", risk=70, et=1000.0, src="10.0.1.5")
+    a1["dst_ip"] = "192.168.50.254"
+    a2 = alert_dict(cls="DDOS", risk=75, et=1005.0, src="10.0.2.8")
+    a2["dst_ip"] = "192.168.50.254"
+    inc1 = corr.attach(a1)
+    inc2 = corr.attach(a2)
+    # Both should be grouped into the same incident keyed on the target victim
+    assert inc1["incident_id"] == inc2["incident_id"]
+    assert inc2["alert_count"] == 2
+    assert inc2["src_ip"] == "192.168.50.254"
+
+    # DDoS against a different victim creates a separate incident
+    a3 = alert_dict(cls="DDOS", risk=70, et=1006.0, src="10.0.3.9")
+    a3["dst_ip"] = "192.168.50.100"
+    inc3 = corr.attach(a3)
+    assert inc3["incident_id"] != inc1["incident_id"]
+
+
 # ---------------------------------------------------------------------------
 # Worker end to end (fakeredis)
 # ---------------------------------------------------------------------------
@@ -281,6 +302,41 @@ def test_cooldown_suppresses_alert_storms_but_not_other_classes(cfg, r):
     classes = sorted(a["threat_class"] for a in sink.alerts.values())
     assert classes == ["C2_BEACONING", "RECON_PORT_SCAN"]
     assert worker.metrics.counters["alerts_suppressed"] == 49
+
+
+def test_ddos_cooldown_suppresses_alert_flood_by_destination_ip(cfg, r):
+    worker, sink = make_worker(cfg, r)
+    # 20 DDoS flows with random spoofed sources hitting the same target
+    for i in range(20):
+        publish(r, cfg, cls="DDOS", flow_id=f"ddos_{i}", src_ip=f"10.0.{i}.1", dst_ip="192.168.50.254")
+    # 1 DDoS flow hitting a different target
+    publish(r, cfg, cls="DDOS", flow_id="ddos_other", src_ip="10.0.99.1", dst_ip="192.168.50.100")
+    drain(worker)
+    # 19 of the 20 attacks on the first target should be suppressed by cooldown
+    assert worker.metrics.counters["alerts_suppressed"] == 19
+    # Only 2 alerts emitted: 1 for victim .254 and 1 for victim .100
+    assert len(sink.alerts) == 2
+
+
+def test_batch_correlation_groups_ddos_by_destination():
+    from models.alert_schema import Alert
+    from models.correlation import correlate_alerts, get_incident_summary
+    alerts = [
+        Alert(timestamp="2026-09-23T10:00:00+00:00", flow_id="f1", src_ip="10.0.0.1", dest_ip="192.168.50.30", threat_class="ddos", risk_score=75),
+        Alert(timestamp="2026-09-23T10:01:00+00:00", flow_id="f2", src_ip="10.0.0.2", dest_ip="192.168.50.30", threat_class="ddos", risk_score=80),
+        Alert(timestamp="2026-09-23T10:01:30+00:00", flow_id="f3", src_ip="10.0.0.3", dest_ip="192.168.50.99", threat_class="ddos", risk_score=70),
+    ]
+    correlated = correlate_alerts(alerts)
+    # First two alerts target .30 -> same incident
+    assert correlated[0].incident_id == correlated[1].incident_id
+    # Third alert targets .99 -> different incident
+    assert correlated[2].incident_id != correlated[0].incident_id
+
+    summaries = get_incident_summary(correlated)
+    assert len(summaries) == 2
+    by_ip = {s["src_ip"]: s for s in summaries}
+    assert by_ip["192.168.50.30"]["alert_count"] == 2
+    assert by_ip["192.168.50.99"]["alert_count"] == 1
 
 
 def test_recency_raises_risk_on_repeat_source(cfg, r):

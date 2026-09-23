@@ -26,20 +26,22 @@ from models.alert_schema import Alert, risk_level_from_score
 
 
 def correlate_alerts(alerts: List[Alert]) -> List[Alert]:
-    """Group alerts by src_ip with a 10-minute gap merge, apply noisy-OR.
+    """Group alerts by entity (dest_ip for DDoS, src_ip for others) with a 10-minute gap merge, apply noisy-OR.
 
     Modifies alerts in-place (sets incident_id) and returns them.
     """
     if not alerts:
         return alerts
 
-    # ── Group by src_ip ──────────────────────────────────────────────
-    by_src: Dict[str, List[Alert]] = defaultdict(list)
+    # ── Group by entity IP (dest_ip for DDoS, src_ip for others) ──────
+    by_entity: Dict[str, List[Alert]] = defaultdict(list)
     for alert in alerts:
-        by_src[alert.src_ip].append(alert)
+        is_ddos = str(alert.threat_class).strip().lower() in ("ddos", "dos", "volumetric_ddos", "flood")
+        entity = (alert.dest_ip or alert.src_ip) if is_ddos else alert.src_ip
+        by_entity[entity].append(alert)
 
     # ── Merge within time window ─────────────────────────────────────
-    for src_ip, group in by_src.items():
+    for entity_ip, group in by_entity.items():
         # Sort by timestamp
         group.sort(key=lambda a: a.timestamp)
         incidents = _split_into_incidents(group)
@@ -126,9 +128,13 @@ def get_incident_summary(alerts: List[Alert]) -> List[Dict]:
         timestamps = [a.timestamp for a in inc_alerts]
         threat_classes = list(set(a.threat_class for a in inc_alerts))
 
+        first_alert = inc_alerts[0]
+        is_ddos = str(first_alert.threat_class).strip().lower() in ("ddos", "dos", "volumetric_ddos", "flood")
+        entity_ip = (first_alert.dest_ip or first_alert.src_ip) if is_ddos else first_alert.src_ip
+
         summaries.append({
             "incident_id": inc_id,
-            "src_ip": inc_alerts[0].src_ip,
+            "src_ip": entity_ip,
             "alert_count": len(inc_alerts),
             "combined_risk": combined_int,
             "risk_level": risk_level_from_score(combined_int),
